@@ -21,6 +21,11 @@ class ApActiveClients
 
         bool isClientActive(const uint64_t macAddrUint64) const;
 
+        uint32_t GetNoClient() const
+        {
+            return m_ActiveClientsSet.size();
+        };
+
     private:
 
         std::string macToString(const uint64_t macAddrUint64);
