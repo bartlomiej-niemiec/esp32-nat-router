@@ -7,6 +7,3 @@ static constexpr std::string_view DEFAULT_AP_PASSWORD = "DEF_AP_PASSWORD";
 
 static constexpr std::string_view DEFAULT_STA_SSID = "DEF_STA";
 static constexpr std::string_view DEFAULT_STA_PASSWORD = "DEF_STA_PASSWORD";
-
-static constexpr std::string_view DEFAULT_LOGIN = "admin";
-static constexpr std::string_view DEFAULT_PASSWORD = "admin";

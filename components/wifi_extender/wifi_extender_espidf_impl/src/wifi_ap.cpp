@@ -41,9 +41,9 @@ bool WifiAp::Init()
     IP4_ADDR(&ip_info.gw,      192, 168, 50, 1);
     IP4_ADDR(&ip_info.netmask, 255, 255, 255, 0);
 
-    ESP_ERROR_CHECK(esp_netif_dhcps_stop(m_ap_netif));          // zatrzymaj DHCP
+    ESP_ERROR_CHECK(esp_netif_dhcps_stop(m_ap_netif));          
     ESP_ERROR_CHECK(esp_netif_set_ip_info(m_ap_netif, &ip_info));
-    ESP_ERROR_CHECK(esp_netif_dhcps_start(m_ap_netif));         // odpal DHCP z nową pulą
+    ESP_ERROR_CHECK(esp_netif_dhcps_start(m_ap_netif));         
 
 
     return true;
