@@ -13,22 +13,7 @@ void Controller::Startup()
 {
     using namespace WifiExtender;
 
-    const AccessPointConfig apConfig(
-        DEFAULT_AP_SSID,
-        DEFAULT_AP_PASSWORD
-    );
-
-    const StaConfig staConfig(
-        DEFAULT_STA_SSID,
-        DEFAULT_STA_PASSWORD
-    );
-
-    auto printApConfig = [](AccessPointConfig ap){
-        ESP_LOGI("NvsApConfig", "ssid: %s", ap.ssid.data());
-        ESP_LOGI("NvsApConfig", "password: %s", ap.password.data());
-    };
-
-    WifiExtenderConfig config(apConfig, staConfig);
+    WifiExtenderConfig config(m_NetworkConfigManager.GetApConfig(), m_NetworkConfigManager.GetStaConfig());
     pWifiExtender = &WifiExtenderFactory::GetInstance().GetWifiExtender();
     pWifiScannerIf = pWifiExtender->GetScanner();
    
@@ -38,17 +23,19 @@ void Controller::Startup()
     }
 
     m_WifiExtenderEventQueue = xQueueCreate(WIFI_EXTENDER_QUEUE_SIZE, sizeof(WifiExtender::WifiExtenderState));
-    
     assert(nullptr != m_WifiExtenderEventQueue);
     WifiEventDispatcher logEventListener(m_WifiExtenderEventQueue);
-    pWifiExtender->RegisterListener(&logEventListener);
 
+    pWifiExtender->RegisterListener(&logEventListener);
     pWifiExtender->Startup(config);
+    constexpr uint32_t DELAY_MS = 200;
+    vTaskDelay(pdMS_TO_TICKS(DELAY_MS));
+
     WebServer & webServerInstance = WebServer::GetInstance();
     webServerInstance.Init(&UserCredential::UserCredentialManager::GetInstance());
     webServerInstance.Startup();
-    WifiExtender::WifiExtenderState state;
 
+    WifiExtender::WifiExtenderState state;
     while(true)
     {
         if (xQueueReceive(
@@ -57,11 +44,9 @@ void Controller::Startup()
             portMAX_DELAY
             ) == pdTRUE )
         {
-            m_Led->Update(state);
-            if ((state == WifiExtender::WifiExtenderState::CONNECTING ||
-                state == WifiExtender::WifiExtenderState::RUNNING))
+            if (m_Led)
             {
-                
+                m_Led->Update(state);
             }
         }
         vTaskDelay(pdMS_TO_TICKS(10));

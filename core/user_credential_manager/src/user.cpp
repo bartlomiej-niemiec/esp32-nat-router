@@ -19,8 +19,6 @@ User::User(std::string_view name, std::string_view password, int level):
     auto dataEntry = dataStorer.GetDataEntry<Data>(name);
     DataRawStorerIf::ReadStatus stat = dataEntry.GetData(tempData);
 
-    Data tempData2;
-
     if (stat != DataRawStorerIf::ReadStatus::NOT_FOUND)
     {
         dataEntry.Remove();
@@ -43,7 +41,7 @@ bool User::IsUserExisting(std::string_view name)
     auto & dataStorer = DataStorage::DataStorer::GetInstance();
     auto dataEntry = dataStorer.GetDataEntry<Data>(name);
     Data temp;
-    DataRawStorerIf::ReadStatus stat = dataEntry.GetData(temp);
+    dataEntry.GetData(temp);
     return temp.GetName() == name;
 }
 

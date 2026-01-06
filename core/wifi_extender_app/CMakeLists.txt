@@ -4,6 +4,7 @@ idf_component_register(
                         SRCS  "./src/wifi_extender_app.cpp"
                               "./src/controller.cpp"
                               "./src/network_status_led.cpp"
+                              "./src/network_config_manager.cpp"
                               "./src/webserver.cpp"
                         INCLUDE_DIRS "./include"
                         REQUIRES    wifi_extender_if

@@ -10,6 +10,7 @@
 
 #include "user_credential_manager/user_credential_manager.hpp"
 
+#include "network_config_manager.hpp"
 #include "network_status_led.hpp"
 #include "webserver.hpp"
 
@@ -28,6 +29,8 @@ class Controller
 
         WifiExtender::WifiExtenderScannerIf * pWifiScannerIf;
 
+        NetworkConfigManager m_NetworkConfigManager;
+
         static constexpr uint32_t WIFI_EXTENDER_QUEUE_SIZE = 16;
         QueueHandle_t m_WifiExtenderEventQueue;
         class WifiEventDispatcher:
@@ -41,7 +44,6 @@ class Controller
 
                 void Callback(WifiExtender::WifiExtenderState event) override
                 {
-
                     xQueueGenericSend(m_QueueHandle, (void * ) &event, ( TickType_t ) 0, queueSEND_TO_BACK );
                 };
             
