@@ -68,20 +68,4 @@ class NetworkStatusLed
 
 };
 
-class NetworkLedEventListener:
-    public WifiExtender::EventListener
-{
-    public:
-        explicit NetworkLedEventListener(NetworkStatusLed * led):
-            m_Led(led) {};
-
-        void Callback(WifiExtender::WifiExtenderState event) override
-        {
-            m_Led->Update(event);
-        };
-
-    private:
-        NetworkStatusLed * m_Led;
-};
-
 }

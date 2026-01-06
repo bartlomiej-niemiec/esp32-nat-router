@@ -1,5 +1,5 @@
 #include "wifi_extender_app.hpp"
-#include "model.hpp"
+#include "controller.hpp"
 
 #include "data_storer_if/data_storer.hpp"
 
@@ -13,8 +13,8 @@ void Init()
 
 void Startup()
 {
-    static Model m;
-    m.Startup();
+    static Controller controller;
+    controller.Startup();
 }
 
 

@@ -17,7 +17,7 @@ class UserCredentialManager
 
         static constexpr int MAX_USERS = 5;
 
-        UserCredentialManager & GetInstance();
+        static UserCredentialManager & GetInstance();
 
         std::vector<std::string> GetUserNames() const;
 
@@ -34,7 +34,7 @@ class UserCredentialManager
 
         std::optional<Error> ChangeUserLevel(std::string_view userName, int level); 
 
-        std::optional<Error> VerifyUserPassword(std::string_view userName, std::string_view password, bool & passwordMatch); 
+        std::optional<Error> VerifyUserPassword(std::string_view userName, std::string_view password, int & userLevel); 
 
         std::optional<Error> DeleteUser(std::string_view userName);
 
@@ -49,11 +49,11 @@ class UserCredentialManager
         /// @brief Default users
         static constexpr std::string_view adminUserName{"admin"};
         static constexpr std::string_view adminUserDefaultPassword{"admin"};
-        static constexpr int adminDefaultLevel = 9;
+        static constexpr int adminDefaultLevel = 7;
 
         static constexpr std::string_view readerUserName{"user"};
         static constexpr std::string_view readerUserDefaultPassword{"user"};
-        static constexpr int userDefaultLevel = 0;
+        static constexpr int userDefaultLevel = 3;
 
         static constexpr std::string_view userNamesNvs{"UcmNames"};
 

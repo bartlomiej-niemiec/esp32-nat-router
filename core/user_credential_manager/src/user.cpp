@@ -3,6 +3,7 @@
 #include <string.h>
 #include <assert.h>
 
+
 namespace UserCredential
 {
 
@@ -26,7 +27,7 @@ User::User(std::string_view name, std::string_view password, int level):
         dataEntry = dataStorer.GetDataEntry<Data>(name);
     }
 
-    dataEntry.SetData(tempData2);
+    dataEntry.SetData(m_CachedData);
 }
 
 User::User(std::string_view name)
@@ -34,7 +35,6 @@ User::User(std::string_view name)
     auto & dataStorer = DataStorage::DataStorer::GetInstance();
     auto dataEntry = dataStorer.GetDataEntry<Data>(name);
     DataRawStorerIf::ReadStatus stat = dataEntry.GetData(m_CachedData);
-    
     assert(stat == DataRawStorerIf::ReadStatus::OK);
 }
 
@@ -44,7 +44,7 @@ bool User::IsUserExisting(std::string_view name)
     auto dataEntry = dataStorer.GetDataEntry<Data>(name);
     Data temp;
     DataRawStorerIf::ReadStatus stat = dataEntry.GetData(temp);
-    return stat == DataRawStorerIf::ReadStatus::OK;
+    return temp.GetName() == name;
 }
 
 
@@ -60,7 +60,7 @@ bool User::ChangePassword(std::string_view newPassword)
     auto dataEntry = dataStorer.GetDataEntry<Data>(m_CachedData.GetName());
     
     DataRawStorerIf::ReadStatus stat = dataEntry.GetData(tempData);
-    if (stat != DataRawStorerIf::ReadStatus::OK) return false;
+    if (stat == DataRawStorerIf::ReadStatus::NOK) return false;
 
     tempData.SetPassword(newPassword);
     bool res = dataEntry.SetData(tempData);
@@ -79,7 +79,7 @@ bool User::ChangeLevel(const int newLevel)
     auto dataEntry = dataStorer.GetDataEntry<Data>(m_CachedData.GetName());
     
     DataRawStorerIf::ReadStatus stat = dataEntry.GetData(tempData);
-    if (stat != DataRawStorerIf::ReadStatus::OK) return false;
+    if (stat == DataRawStorerIf::ReadStatus::NOK) return false;
 
     tempData.SetLevel(newLevel);
     bool res = dataEntry.SetData(tempData);
@@ -93,13 +93,15 @@ bool User::ChangeLevel(const int newLevel)
 
 bool User::VerifyPassword(std::string_view password)
 {
-    return m_CachedData.GetPassword() == password;
+    bool isMatch = strncmp(m_CachedData.GetPassword().data(), password.data(), MAX_PASSWORD_SIZE) == 0;
+    ESP_LOGI("User", "Password Nvs: %s, Password Give: %s, isMatach: %i", m_CachedData.GetPassword().data(), password.data(), static_cast<int>(isMatch));
+    return isMatch;
 }
 
 User::Data & User::Data::SetName(std::string_view newName)
 {
     memset(this->name.data(), 0, MAX_USERNAME_SIZE);
-    size_t min = MAX_USERNAME_SIZE - 1 < strnlen(newName.data(), MAX_USERNAME_SIZE) ? strnlen(newName.data(), MAX_USERNAME_SIZE): MAX_USERNAME_SIZE - 1;
+    size_t min = MAX_USERNAME_SIZE - 1 < newName.size() ? newName.size() : MAX_USERNAME_SIZE - 1;
     strncpy(this->name.data(), newName.data(), min);
     this->name[min] = '\0';
     return *this;
@@ -109,7 +111,7 @@ User::Data & User::Data::SetName(std::string_view newName)
 User::Data & User::Data::SetPassword(std::string_view newPassword)
 {
     memset(this->password.data(), 0, MAX_PASSWORD_SIZE);
-    size_t min = MAX_PASSWORD_SIZE - 1 < strnlen(newPassword.data(), MAX_PASSWORD_SIZE) ? strnlen(newPassword.data(), MAX_PASSWORD_SIZE): MAX_PASSWORD_SIZE - 1;
+    size_t min = MAX_PASSWORD_SIZE - 1 < newPassword.size() ? newPassword.size() : MAX_PASSWORD_SIZE - 1;
     strncpy(this->password.data(), newPassword.data(), min);
     this->password[min] = '\0';
     return *this;
@@ -130,6 +132,11 @@ std::string_view User::Data::GetName() const
 std::string_view User::Data::GetPassword() const
 {
     return this->password.data();
+}
+
+int User::Data::GetLevel() const
+{
+    return this->level;
 }
 
 }

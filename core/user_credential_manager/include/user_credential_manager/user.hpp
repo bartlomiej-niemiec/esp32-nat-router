@@ -8,6 +8,8 @@
 #include <cstring>
 #include <array>
 
+#include "esp_log.h"
+
 namespace UserCredential
 {
 
@@ -32,6 +34,11 @@ class User{
 
         bool VerifyPassword(std::string_view password);
 
+        int GetLevel() const
+        {
+            return m_CachedData.GetLevel();
+        }
+
         static bool IsUserExisting(std::string_view name);
 
     private:
@@ -49,10 +56,18 @@ class User{
                 Data & operator=(const Data & d) = default;
                 std::string_view GetName() const;
                 std::string_view GetPassword() const;
+                int GetLevel() const;
         }; 
 
         
         Data m_CachedData;
+
+        void printCachedData(Data & d)
+        {
+            ESP_LOGI("User", "Name: %s", d.GetName().data());
+            ESP_LOGI("User", "Password: %s", d.GetPassword().data());
+            ESP_LOGI("User", "Level: %i", d.GetLevel());
+        };
 
 };
 

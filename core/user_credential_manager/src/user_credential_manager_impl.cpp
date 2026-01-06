@@ -18,6 +18,7 @@ UserCredentialManager::UserCredentialManager():
     }
     else
     {
+        ESP_LOGI("UserCredentialManager", "User: %s has been found", adminUserName.data());
         m_Users.emplace(std::make_pair(adminUserName, User(adminUserName)));
     }
 
@@ -27,6 +28,7 @@ UserCredentialManager::UserCredentialManager():
     }
     else
     {
+        ESP_LOGI("UserCredentialManager", "User: %s has been found", readerUserName.data());
         m_Users.emplace(std::make_pair(readerUserName, User(readerUserName)));
     }
 
@@ -42,6 +44,7 @@ UserCredentialManager::UserCredentialManager():
         {
             static constexpr const char * EMPTY_NAME = "";
             if (strncmp(userEntry.data(), EMPTY_NAME, MAX_USERNAME_SIZE) == 0) break;
+            ESP_LOGI("UserCredentialManager", "User: %s has been found", userEntry.data());
             m_Users.emplace(std::make_pair(userEntry.data(), User(userEntry.data())));
             m_NoUsers++;
         }
@@ -90,7 +93,7 @@ std::optional<UserCredentialManager::Error> UserCredentialManager::ChangeUserLev
     return std::nullopt;
 }
 
-std::optional<UserCredentialManager::Error> UserCredentialManager::VerifyUserPassword(std::string_view userName, std::string_view password, bool & passwordMatch)
+std::optional<UserCredentialManager::Error> UserCredentialManager::VerifyUserPassword(std::string_view userName, std::string_view password, int & userLevel)
 {
     std::string userstring(userName);
     auto it = m_Users.find(userstring);
@@ -98,7 +101,7 @@ std::optional<UserCredentialManager::Error> UserCredentialManager::VerifyUserPas
 
     if (it->second.VerifyPassword(password))
     {
-        passwordMatch = true;
+        userLevel = it->second.GetLevel();
         return std::nullopt;
     }
 

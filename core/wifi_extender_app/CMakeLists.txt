@@ -2,8 +2,9 @@ cmake_minimum_required(VERSION 3.16)
 
 idf_component_register(
                         SRCS  "./src/wifi_extender_app.cpp"
-                              "./src/model.cpp"
+                              "./src/controller.cpp"
                               "./src/network_status_led.cpp"
+                              "./src/webserver.cpp"
                         INCLUDE_DIRS "./include"
                         REQUIRES    wifi_extender_if
                                     wifi_extender_espidf_impl
