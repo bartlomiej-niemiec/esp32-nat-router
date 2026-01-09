@@ -2,8 +2,9 @@ cmake_minimum_required(VERSION 3.16)
 
 idf_component_register(
                         SRCS  "./src/wifi_extender_app.cpp"
-                              "./src/controller.cpp"
+                              "./src/wifi_event_monitor.cpp"
                               "./src/network_status_led.cpp"
+                              "./src/webserver_srvs.cpp"
                               "./src/network_config_manager.cpp"
                               "./src/webserver.cpp"
                         INCLUDE_DIRS "./include"

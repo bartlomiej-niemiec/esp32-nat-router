@@ -2,8 +2,11 @@
 
 #include <stdint.h>
 #include <string>
+#include <cstring>
 #include <string_view>
 #include <array>
+
+#include "lwip/inet.h"
 
 namespace WifiExtender
 {
@@ -21,8 +24,8 @@ enum class WifiExtenderState : uint8_t {
 
 struct AccessPointConfig {
     AccessPointConfig();
-    AccessPointConfig(std::string ssid, std::string password, int max_clients = 1);
-    AccessPointConfig(std::string_view ssid, std::string_view password, int max_clients = 1);
+    AccessPointConfig(std::string ssid, std::string password, uint32_t ipAddress, uint32_t networkmask, int max_clients = 1);
+    AccessPointConfig(std::string_view ssid, std::string_view password, uint32_t ipAddress, uint32_t networkmask, int max_clients = 1);
     AccessPointConfig(const AccessPointConfig & config) = default;
     AccessPointConfig(AccessPointConfig & config) = default;
     AccessPointConfig & operator=(AccessPointConfig & apconfig) = default;
@@ -39,7 +42,8 @@ struct AccessPointConfig {
     std::array<char, MAX_SSID_SIZE> ssid;
     std::array<char, MAX_PASSWORD_SIZE> password;
     int max_clients;
-
+    uint32_t ipAddress;
+    uint32_t networkmask;
 };
 
 struct StaConfig {
@@ -84,6 +88,18 @@ struct WifiExtenderConfig {
 class WifiExtenderHelpers
 {
 public:
+
+    static constexpr bool ConvertStringToIpAddress(const char * ipAddrStr, uint32_t & ipAddrNum)
+    {
+        ip4_addr_t ipAddrT;
+        int res = ip4addr_aton(ipAddrStr, &ipAddrT);
+        if (res == 1)
+        {
+            std::memcpy(&ipAddrNum, &ipAddrT, 4);
+            return true;
+        }
+        return false;
+    }
 
     static constexpr std::string_view WifiExtenderStaToString(const WifiExtenderState & state)
     {

@@ -5,10 +5,12 @@
 namespace WifiExtender
 {
 
-AccessPointConfig::AccessPointConfig(std::string str_ssid, std::string str_password, int max_clients):
+AccessPointConfig::AccessPointConfig(std::string str_ssid, std::string str_password, uint32_t ipAddress, uint32_t networkmask, int max_clients):
     ssid{},
     password{},
-    max_clients(max_clients)
+    max_clients(max_clients),
+    ipAddress(ipAddress),
+    networkmask(networkmask)
 {   
     const std::size_t max_ssid_len = MAX_SSID_SIZE - 1;
     const std::size_t n_ssid = std::min(str_ssid.size(), max_ssid_len);
@@ -23,10 +25,12 @@ AccessPointConfig::AccessPointConfig(std::string str_ssid, std::string str_passw
     password[n_pass] = '\0'; 
 }
 
-AccessPointConfig::AccessPointConfig(std::string_view str_ssid, std::string_view str_password, int max_clients):
+AccessPointConfig::AccessPointConfig(std::string_view str_ssid, std::string_view str_password, uint32_t ipAddress, uint32_t networkmask, int max_clients):
     ssid{},
     password{},
-    max_clients(max_clients)
+    max_clients(max_clients),
+    ipAddress(ipAddress),
+    networkmask(networkmask)
 {   
     const std::size_t max_ssid_len = MAX_SSID_SIZE - 1;
     const std::size_t n_ssid = std::min(str_ssid.size(), max_ssid_len);

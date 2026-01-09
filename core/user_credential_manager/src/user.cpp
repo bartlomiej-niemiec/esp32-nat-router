@@ -91,15 +91,13 @@ bool User::ChangeLevel(const int newLevel)
 
 bool User::VerifyPassword(std::string_view password)
 {
-    bool isMatch = strncmp(m_CachedData.GetPassword().data(), password.data(), MAX_PASSWORD_SIZE) == 0;
-    ESP_LOGI("User", "Password Nvs: %s, Password Give: %s, isMatach: %i", m_CachedData.GetPassword().data(), password.data(), static_cast<int>(isMatch));
-    return isMatch;
+    return password == m_CachedData.GetPassword();
 }
 
 User::Data & User::Data::SetName(std::string_view newName)
 {
     memset(this->name.data(), 0, MAX_USERNAME_SIZE);
-    size_t min = MAX_USERNAME_SIZE - 1 < newName.size() ? newName.size() : MAX_USERNAME_SIZE - 1;
+    size_t min = MAX_USERNAME_SIZE - 1 < newName.size() ? MAX_USERNAME_SIZE - 1 : newName.size();
     strncpy(this->name.data(), newName.data(), min);
     this->name[min] = '\0';
     return *this;
@@ -109,7 +107,7 @@ User::Data & User::Data::SetName(std::string_view newName)
 User::Data & User::Data::SetPassword(std::string_view newPassword)
 {
     memset(this->password.data(), 0, MAX_PASSWORD_SIZE);
-    size_t min = MAX_PASSWORD_SIZE - 1 < newPassword.size() ? newPassword.size() : MAX_PASSWORD_SIZE - 1;
+    size_t min = MAX_PASSWORD_SIZE - 1 < newPassword.size() ? MAX_PASSWORD_SIZE - 1 : newPassword.size();
     strncpy(this->password.data(), newPassword.data(), min);
     this->password[min] = '\0';
     return *this;

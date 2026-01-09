@@ -1,15 +1,28 @@
 #include "network_config_manager.hpp"
+#include "esp_log.h"
 #include "config.hpp"
 
 NetworkConfigManager::NetworkConfigManager():
     m_DataStorer(DataStorage::DataStorer::GetInstance())
 {
     auto apConfigEntry = m_DataStorer.GetDataEntry<WifiExtender::AccessPointConfig>(m_ApConfigNvsKey);
+    apConfigEntry.Remove(); 
     if (apConfigEntry.GetData(m_ApConfig) == DataStorage::DataRawStorerIf::ReadStatus::NOT_FOUND)
     {
+        ESP_LOGI("NetworkConfigManager", "Setting AP default config");
+        uint32_t ipAddress;
+        bool res = WifiExtender::WifiExtenderHelpers::ConvertStringToIpAddress(DEFAULT_AP_IP_ADDR.data(), ipAddress);
+        assert(res == true);
+
+        uint32_t netmask;
+        res = WifiExtender::WifiExtenderHelpers::ConvertStringToIpAddress(DEFAULT_AP_NETMASK.data(), netmask);
+        assert(res == true);
+
         const WifiExtender::AccessPointConfig apConfigData(
             DEFAULT_AP_SSID,
-            DEFAULT_AP_PASSWORD
+            DEFAULT_AP_PASSWORD,
+            ipAddress,
+            netmask
         );
         apConfigEntry.SetData(apConfigData);
         apConfigEntry.GetData(m_ApConfig);

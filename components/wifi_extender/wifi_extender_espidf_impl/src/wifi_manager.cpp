@@ -342,6 +342,11 @@ WifiExtenderState WifiManager::GetState() const
     return m_WifiManagerContext.m_WifiManagerState;
 }
 
+int WifiManager::GetNoClients() const
+{
+    return m_WifiManagerContext.m_ApClientsCounter;
+}
+
 WifiManager::Snapshot WifiManager::makeSnapshot() const
 {
     return {

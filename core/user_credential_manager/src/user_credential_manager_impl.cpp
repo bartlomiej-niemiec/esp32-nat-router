@@ -34,21 +34,26 @@ UserCredentialManager::UserCredentialManager():
 
     auto & dataStorer = DataStorage::DataStorer::GetInstance();
     auto dataEntry = dataStorer.GetDataEntry<UsersList>(userNamesNvs);
-    if (dataEntry.GetData(m_UsersDb) == DataStorage::DataRawStorerIf::ReadStatus::NOT_FOUND)
-    {
-        dataEntry.SetData(m_UsersDb);
-    }
-    else
-    {
-        for (auto & userEntry : m_UsersDb)
-        {
-            static constexpr const char * EMPTY_NAME = "";
-            if (strncmp(userEntry.data(), EMPTY_NAME, MAX_USERNAME_SIZE) == 0) break;
-            ESP_LOGI("UserCredentialManager", "User: %s has been found", userEntry.data());
-            m_Users.emplace(std::make_pair(userEntry.data(), User(userEntry.data())));
-            m_NoUsers++;
-        }
-    }
+    // for (auto & userEntry : m_UsersDb)
+    // {
+    //     std::memset(m_UsersDb.data(), 0, MAX_USERNAME_SIZE);
+    // }
+    // dataEntry.SetData(m_UsersDb);
+
+    // if (dataEntry.GetData(m_UsersDb) == DataStorage::DataRawStorerIf::ReadStatus::NOT_FOUND)
+    // {
+    //     dataEntry.SetData(m_UsersDb);
+    // }
+    // else
+    // {
+    //     for (auto & userEntry : m_UsersDb)
+    //     {
+    //         if (userEntry.empty()) break;
+    //         ESP_LOGI("UserCredentialManager", "User: %s has been found", userEntry.data());
+    //         m_Users.emplace(std::make_pair(userEntry.data(), User(userEntry.data())));
+    //         m_NoUsers++;
+    //     }
+    // }
 
 }
 
@@ -122,7 +127,7 @@ std::optional<UserCredentialManager::Error> UserCredentialManager::DeleteUser(st
 
     for (int i = 0; i < m_UsersDb.size(); i++)
     {
-        if (strncmp(m_UsersDb[i].data(), userName.data(), MAX_USERNAME_SIZE) == 0)
+        if (m_UsersDb[i].empty())
         {
             std::memset(m_UsersDb[i].data(), 0, MAX_USERNAME_SIZE);
         }
@@ -151,8 +156,7 @@ std::optional<UserCredentialManager::Error> UserCredentialManager::CreateNewUser
 
     for (int i = 0; i < m_UsersDb.size(); i++)
     {
-        static constexpr const char * EMPTY_NAME = "";
-        if (strncmp(m_UsersDb[i].data(), EMPTY_NAME, MAX_USERNAME_SIZE) == 0)
+        if (m_UsersDb[i].empty())
         {
             size_t size = strnlen(userName.data(), MAX_USERNAME_SIZE);
             std::copy_n(userName.begin(), size, m_UsersDb[i].begin());

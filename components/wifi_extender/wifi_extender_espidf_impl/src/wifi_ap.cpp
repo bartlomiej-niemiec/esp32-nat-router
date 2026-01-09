@@ -36,16 +36,6 @@ bool WifiAp::Init()
     m_ap_netif = esp_netif_create_default_wifi_ap();
     assert(nullptr != m_ap_netif);
 
-    esp_netif_ip_info_t ip_info;
-    IP4_ADDR(&ip_info.ip,      192, 168, 50, 1);
-    IP4_ADDR(&ip_info.gw,      192, 168, 50, 1);
-    IP4_ADDR(&ip_info.netmask, 255, 255, 255, 0);
-
-    ESP_ERROR_CHECK(esp_netif_dhcps_stop(m_ap_netif));          
-    ESP_ERROR_CHECK(esp_netif_set_ip_info(m_ap_netif, &ip_info));
-    ESP_ERROR_CHECK(esp_netif_dhcps_start(m_ap_netif));         
-
-
     return true;
 }
 
@@ -73,6 +63,16 @@ bool WifiAp::SetConfig(const AccessPointConfig &ap_config)
         memcpy(ap_cfg.ap.password, ap_config.password.data(), sizeof(ap_cfg.ap.password));
         ap_cfg.ap.password[sizeof(ap_cfg.ap.password) - 1] = '\0';
     }
+
+    esp_netif_ip_info_t ip_info {
+        .ip = ap_config.ipAddress,
+        .netmask = ap_config.networkmask,
+        .gw = ap_config.ipAddress,
+    };
+
+    ESP_ERROR_CHECK(esp_netif_dhcps_stop(m_ap_netif));          
+    ESP_ERROR_CHECK(esp_netif_set_ip_info(m_ap_netif, &ip_info));
+    ESP_ERROR_CHECK(esp_netif_dhcps_start(m_ap_netif));         
 
     esp_err_t result = esp_wifi_set_config(WIFI_IF_AP, &ap_cfg);
     assert(result == ESP_OK);
