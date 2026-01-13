@@ -1,7 +1,7 @@
-#include "wifi_extender_app.hpp"
+#include "wifi_nat_router_app.hpp"
 
 extern "C" void app_main(void)
 {
-    WifiExtenderApp::Init();
-    WifiExtenderApp::Startup();
+    WifiNatRouter::Init();
+    WifiNatRouter::Startup();
 }
