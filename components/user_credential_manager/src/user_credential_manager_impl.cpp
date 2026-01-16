@@ -1,6 +1,7 @@
 #include "user_credential_manager/user_credential_manager.hpp"
 #include <data_storer_if/data_storer.hpp>
 #include <algorithm>
+#include "config.hpp"
 
 namespace UserCredential
 {
@@ -9,31 +10,32 @@ UserCredentialManager::UserCredentialManager():
     m_NoUsers(0),
     m_UsersDb{}
 {
-    auto adminInNvs = User::IsUserExisting(adminUserName);
-    auto userInNvs = User::IsUserExisting(readerUserName);
+    auto adminInNvs = User::IsUserExisting(ADMIN_USER_DEFAULT_NAME);
+    auto userInNvs = User::IsUserExisting(NON_ADMIN_USER_DEFAULT_NAME);
 
     if (!adminInNvs)
     {
-        m_Users.emplace(std::make_pair(adminUserName, User(adminUserName, adminUserDefaultPassword, adminDefaultLevel)));
+        m_Users.emplace(std::make_pair(ADMIN_USER_DEFAULT_NAME, User(ADMIN_USER_DEFAULT_NAME, ADMIN_USER_DEFAULT_PASSWORD, ADMIN_USER_DEFAULT_LEVEL)));
     }
     else
     {
-        ESP_LOGI("UserCredentialManager", "User: %s has been found", adminUserName.data());
-        m_Users.emplace(std::make_pair(adminUserName, User(adminUserName)));
+        ESP_LOGI("UserCredentialManager", "User: %s has been found", ADMIN_USER_DEFAULT_NAME.data());
+        m_Users.emplace(std::make_pair(ADMIN_USER_DEFAULT_NAME, User(ADMIN_USER_DEFAULT_NAME)));
     }
 
     if (!userInNvs)
     {
-        m_Users.emplace(std::make_pair(readerUserName, User(readerUserName, readerUserDefaultPassword, userDefaultLevel)));
+        m_Users.emplace(std::make_pair(NON_ADMIN_USER_DEFAULT_NAME, User(NON_ADMIN_USER_DEFAULT_NAME, NON_ADMIN_USER_DEFAULT_PASSWORD, NON_ADMIN_USER_DEFAULT_LEVEL)));
     }
     else
     {
-        ESP_LOGI("UserCredentialManager", "User: %s has been found", readerUserName.data());
-        m_Users.emplace(std::make_pair(readerUserName, User(readerUserName)));
+        ESP_LOGI("UserCredentialManager", "User: %s has been found", NON_ADMIN_USER_DEFAULT_NAME.data());
+        m_Users.emplace(std::make_pair(NON_ADMIN_USER_DEFAULT_NAME, User(NON_ADMIN_USER_DEFAULT_NAME)));
     }
 
     auto & dataStorer = DataStorage::DataStorer::GetInstance();
     auto dataEntry = dataStorer.GetDataEntry<UsersList>(userNamesNvs);
+    
     // for (auto & userEntry : m_UsersDb)
     // {
     //     std::memset(m_UsersDb.data(), 0, MAX_USERNAME_SIZE);

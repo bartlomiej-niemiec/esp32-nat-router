@@ -46,15 +46,6 @@ class UserCredentialManager
 
         std::unordered_map<std::string, User> m_Users;
 
-        /// @brief Default users
-        static constexpr std::string_view adminUserName{"admin"};
-        static constexpr std::string_view adminUserDefaultPassword{"admin"};
-        static constexpr int adminDefaultLevel = 7;
-
-        static constexpr std::string_view readerUserName{"user"};
-        static constexpr std::string_view readerUserDefaultPassword{"user"};
-        static constexpr int userDefaultLevel = 3;
-
         static constexpr std::string_view userNamesNvs{"UcmNames"};
 
         using UsersList = std::array<std::array<char, MAX_USERNAME_SIZE>, MAX_USERS>;

@@ -5,6 +5,9 @@
 #include "wifi_nat_router_if/wifi_nat_router_if.hpp"
 #include "wifi_event_monitor.hpp"
 
+#include "internet_access_checker.hpp"
+#include <memory>
+
 #include "mongoose/mongoose_glue.h"
 #include <atomic>
 
@@ -88,4 +91,10 @@ WifiNetwork> m_ScannedNetworks;
             char *auth;
         };
         
+        static bool m_IsInternetAvailable;
+        static void InternetAccessCb(bool IsInternetAccess);
+        static std::unique_ptr<InternetAccessChecker> m_IAchecker;
+        static esp_timer_handle_t m_InternetCheckerTimer;
+        static void InternetCheckerTimerCb(void * pArgs);
+
 };

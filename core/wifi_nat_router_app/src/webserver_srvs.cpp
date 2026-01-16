@@ -22,14 +22,16 @@ WifiNatRouter::
 AccessPointConfig WebServerServices::m_PendingApConfig{};
 WifiNatRouter::
 StaConfig WebServerServices::m_PendingStaConfig{};
-bool WebServerServices::m_ApNetworkConfigSaved = false;
-bool WebServerServices::m_StaNetworkConfigSaved = false;
-bool WebServerServices::m_ConfigChangeInProgress = false;
+bool WebServerServices::m_ApNetworkConfigSaved{false};
+bool WebServerServices::m_StaNetworkConfigSaved{false};
+bool WebServerServices::m_ConfigChangeInProgress{false};
+bool WebServerServices::m_IsInternetAvailable{false};
+std::unique_ptr<InternetAccessChecker> WebServerServices::m_IAchecker{nullptr};
+esp_timer_handle_t WebServerServices::m_InternetCheckerTimer{nullptr};
 
 void WebServerServices::Init(
                         UserCredential::UserCredentialManager * pUserCredentialManager,
-                        WifiNatRouter::
-WifiNatRouterIf * pWifiNatRouterIf,
+                        WifiNatRouter::WifiNatRouterIf * pWifiNatRouterIf,
                         NetworkConfigManager * pNetworkConfigManager,
                         WifiEventMonitor * pWifiEventMonitor
                     )
@@ -52,6 +54,21 @@ WifiNatRouterIf * pWifiNatRouterIf,
     {
         m_pNetworkConfigManager = pNetworkConfigManager;
     }
+
+    m_IAchecker = std::make_unique<InternetAccessChecker>(InternetAccessCb);
+
+    esp_timer_create_args_t internetAccessTimerArgs = {
+        .callback = InternetCheckerTimerCb,
+        .arg = nullptr,
+        .dispatch_method = ESP_TIMER_TASK,
+        .name = "InternetCheckerTimer",
+        .skip_unhandled_events = true
+    };
+
+    ESP_ERROR_CHECK(esp_timer_create(
+        &internetAccessTimerArgs,
+        &m_InternetCheckerTimer
+    ));  
 
     assert(nullptr != pWifiEventMonitor);
     pWifiEventMonitor->Subscribe(WifiEventCb);
@@ -93,7 +110,7 @@ void WebServerServices::SetApSetting(saveapsettings * settings)
 {
     if (m_ConfigChangeInProgress) return;
 
-    if (static_cast<uint8_t>(strnlen(settings->password, sizeof(settings->password))) < PASSWORD_MINIMAL_SIZE) return;
+    if (static_cast<uint8_t>(strnlen(settings->password, sizeof(settings->password))) < ESP_IDF_MINIMAL_PASSWORD_SIZE) return;
 
     static_assert(m_PendingApConfig.ssid.max_size() >= sizeof(settings->name));
     static_assert(m_PendingApConfig.password.max_size() >= sizeof(settings->password));
@@ -261,6 +278,7 @@ WifiNatRouterHelpers::WifiNatRouterStaToString(state).data(), sizeof(info->State
     info->Clients = m_pWifiNatRouter->GetNoClients();
     info->StaConn = state == WifiNatRouter::
 WifiNatRouterState::RUNNING;
+    info->StaIa = m_IsInternetAvailable;
 }
 
 void WebServerServices::SetWifiNatRouterInfo(info * info)
@@ -349,15 +367,55 @@ AccessPointConfig & actualApConfig = m_pNetworkConfigManager->GetApConfig();
 void WebServerServices::WifiEventCb(WifiNatRouter::
 WifiNatRouterState event)
 {
-    if (m_ConfigChangeInProgress)
+    switch (event)
     {
-        if (event == WifiNatRouter::
-WifiNatRouterState::CONNECTING)
+        case WifiNatRouter::WifiNatRouterState::NEW_CONFIGURATION_PENDING:
         {
-            m_ConfigChangeInProgress = false;
-            m_StaNetworkConfigSaved = false;
-            m_ApNetworkConfigSaved = false;
-            glue_update_state();
+            if(esp_timer_is_active(m_InternetCheckerTimer))
+            {
+                esp_timer_stop(m_InternetCheckerTimer);
+            }
         }
+        break;
+
+        case WifiNatRouter::WifiNatRouterState::CONNECTING:
+        {
+            if (m_ConfigChangeInProgress)
+            {
+                m_ConfigChangeInProgress = false;
+                m_StaNetworkConfigSaved = false;
+                m_ApNetworkConfigSaved = false;
+                glue_update_state();
+            }
+        }
+        break;
+
+        case WifiNatRouter::WifiNatRouterState::RUNNING:
+        {
+            m_IAchecker->Check();
+            ESP_ERROR_CHECK(esp_timer_start_periodic(
+                m_InternetCheckerTimer,
+                10000000 //10s
+            ));
+        }
+        break;
+
+        default:
+            break;
     }
+}
+
+
+void WebServerServices::InternetAccessCb(bool IsInternetAccess)
+{
+    if (IsInternetAccess != m_IsInternetAvailable)
+    {
+        m_IsInternetAvailable = IsInternetAccess;
+        glue_update_state();
+    }
+}
+
+void WebServerServices::InternetCheckerTimerCb(void * pArgs)
+{
+    m_IAchecker->Check();
 }

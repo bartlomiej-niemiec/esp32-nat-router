@@ -41,9 +41,9 @@ WifiNatRouterFactory::GetInstance().GetWifiNatRouter();
 
     NetworkStatusLed::NetworkStatusLed * m_Led = nullptr;
     WifiEventMonitor wifiEventMonitor;
-    if (ESP32S3_TARGET)
+    if (ENABLE_RGB_LED)
     {
-        m_Led = new (std::nothrow) NetworkStatusLed::NetworkStatusLed(GPIO_BUILT_RGB_LED_ESP32S3);
+        m_Led = new (std::nothrow) NetworkStatusLed::NetworkStatusLed(RGB_LED_GPIO_PIN);
         wifiEventMonitor.Subscribe([&m_Led](WifiNatRouter::
 WifiNatRouterState state){m_Led->Update(state);});
         wifiEventMonitor.Startup();

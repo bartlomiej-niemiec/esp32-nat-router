@@ -6,6 +6,7 @@ idf_component_register(
                               "./src/network_status_led.cpp"
                               "./src/webserver_srvs.cpp"
                               "./src/network_config_manager.cpp"
+                              "./src/internet_access_checker.cpp"
                               "./src/webserver.cpp"
                         INCLUDE_DIRS "./include"
                         REQUIRES    wifi_nat_router_if
@@ -16,4 +17,7 @@ idf_component_register(
                                     data_storer_nvs_impl
                                     mongoose         
                                     user_credential_manager
+                                    wifi_nat_router_config
+                                    esp_driver_gpio
+                                    lwip
                     )

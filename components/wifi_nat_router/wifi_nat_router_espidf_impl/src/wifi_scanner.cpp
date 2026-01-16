@@ -85,9 +85,18 @@ void WifiScanner::ScanningCompleteSignal()
     m_ScannedNetworks.reserve(count);
     for (auto& r : recs) {
         size_t ssid_len = strnlen(reinterpret_cast<const char*>(r.ssid), sizeof(r.ssid));
+        const uint8_t * p_ssid = r.ssid;
+
+        constexpr const char * pHiddenNetwork = "Hidden Network";
+        if (!ssid_len)
+        {
+            p_ssid = reinterpret_cast<const uint8_t*>(pHiddenNetwork);
+            ssid_len = sizeof("Hidden Network");
+        }
+
         m_ScannedNetworks.emplace_back(
             WifiNetwork(
-                r.ssid,
+                p_ssid,
                 ssid_len,
                 r.bssid,
                 sizeof(r.bssid),
