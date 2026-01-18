@@ -1,9 +1,10 @@
 #include "webserver_srvs.hpp"
 
 #include "wifi_nat_router_if/wifi_nat_router_if.hpp"
+#include "wifi_nat_router_if/wifi_scanner_scanner_types.hpp"
 #include "wifi_nat_router_if/wifi_nat_router_config.hpp"
 
-#include "config.hpp"
+#include "wifi_nat_router_app_config.hpp"
 
 #include "esp_log.h"
 
@@ -11,22 +12,25 @@
 #include <string_view>
 #include <algorithm>
 
-
-bool WebServerServices::m_ApNetworkConfigSaved{false};
-bool WebServerServices::m_StaNetworkConfigSaved{false};
 WifiNatRouterApp::WifiNatRouterAppIf * WebServerServices::m_pWifiNatRouterAppIf{nullptr};
+UserCredential::UserCredentialManager * WebServerServices::m_pUserCredentialManager{nullptr};
 WifiNatRouterApp::AppSnapshot WebServerServices::m_AppSnapshot{};
 WifiNatRouterApp::AppSnapshot WebServerServices::m_PrevAppSnapshot{};
 bool WebServerServices::m_RefreshRequired{false};
+bool WebServerServices::m_StaNetworkConfigSaved{false};
+bool WebServerServices::m_ApNetworkConfigSaved{false};
+bool WebServerServices::m_NewConfigPendingInProgress{false};
 
 
-void WebServerServices::Init(WifiNatRouterApp::WifiNatRouterAppIf * pWifiNatRouterAppIf);
+void WebServerServices::Init(WifiNatRouterApp::WifiNatRouterAppIf * pWifiNatRouterAppIf)
 {
     assert(nullptr != pWifiNatRouterAppIf);
     if (m_pWifiNatRouterAppIf == nullptr)
     {
         m_pWifiNatRouterAppIf = pWifiNatRouterAppIf;
     }
+
+    m_pUserCredentialManager = &UserCredential::UserCredentialManager::GetInstance();
 }
 
 int WebServerServices::AuthenticateUser(const char *user, const char *pass)
@@ -61,7 +65,7 @@ void WebServerServices::GetApSetting(saveapsettings * settings)
 
 void WebServerServices::SetApSetting(saveapsettings * settings)
 {
-    if (m_AppSnapshot.configApplyInProgress) return;
+    if (m_NewConfigPendingInProgress || m_AppSnapshot.configApplyInProgress) return;
 
     if (static_cast<uint8_t>(strnlen(settings->password, sizeof(settings->password))) < ESP_IDF_MINIMAL_PASSWORD_SIZE) return;
 
@@ -80,7 +84,10 @@ WifiNatRouterHelpers::ConvertStringToIpAddress(settings->networkmask, netMask)) 
 
     if (pendingApConfig != m_AppSnapshot.config.apConfig)
     {
-        
+        WifiNatRouterApp::Command cmd;
+        cmd.cmd = WifiNatRouterApp::WifiNatRouterCmd::CmdSetApConfig;
+        cmd.apConfig = pendingApConfig;
+        m_pWifiNatRouterAppIf->SendCommand(cmd);
         m_ApNetworkConfigSaved = true;
     }
 }
@@ -100,40 +107,50 @@ void WebServerServices::SetLogin(login * loginData)
 
 void WebServerServices::GetStaSettings(savestasettings * settings)
 {
-    WifiNatRouter::
-StaConfig staConfig = m_pNetworkConfigManager->GetStaConfig();
-    strncpy(settings->Name, staConfig.ssid.data(), sizeof(settings->Name));
+    strncpy(settings->Name, m_AppSnapshot.config.staConfig.ssid.data(), sizeof(settings->Name));
 }
 
 void WebServerServices::SetStaSetings(savestasettings * settings)
 {
-    if (m_ConfigChangeInProgress) return;
+    if (m_NewConfigPendingInProgress || m_AppSnapshot.configApplyInProgress) return;
 
-    static_assert(m_PendingStaConfig.password.max_size() >= sizeof(settings->Password));
-    static_assert(m_PendingStaConfig.ssid.size() >= sizeof(settings->Name));
-    
     if (settings->SSIDNoId > 0)
     {
-        if (!m_ScannedNetworks.empty())
+        if (m_AppSnapshot.scannedCount > 0)
         {
             assert(settings->SSIDNoId <= 8);
-            assert(m_PendingStaConfig.ssid.max_size() >= m_ScannedNetworks[settings->SSIDNoId - 1].ssid.size());
-            std::string_view ssid(m_ScannedNetworks[settings->SSIDNoId - 1].ssid.data());
+            std::string_view ssid(m_AppSnapshot.scannedNetworks[settings->SSIDNoId - 1].ssid.data());
             std::string_view password(settings->Password);
             ESP_LOGI("WebServerServices", "STA: %s, password: %s", ssid.data(), password.data());
-            m_PendingStaConfig = WifiNatRouter::
-StaConfig(ssid, password);
+            WifiNatRouter::StaConfig newConfig(ssid, password);
+            if (m_AppSnapshot.config.staConfig != newConfig)
+            {
+                WifiNatRouterApp::Command cmd;
+                cmd.cmd = WifiNatRouterApp::WifiNatRouterCmd::CmdSetStaConfig;
+                cmd.staConfig = newConfig;
+                m_pWifiNatRouterAppIf->SendCommand(cmd);
+                m_StaNetworkConfigSaved = true;
+            }
+
         }
     }
     else
     {
         std::string_view ssid(settings->Name);
         std::string_view password(settings->Password);
-        m_PendingStaConfig = WifiNatRouter::
-StaConfig(ssid, password);
+
+        WifiNatRouter::StaConfig newConfig(ssid, password);
+
+        if (m_AppSnapshot.config.staConfig != newConfig)
+        {
+            WifiNatRouterApp::Command cmd;
+            cmd.cmd = WifiNatRouterApp::WifiNatRouterCmd::CmdSetStaConfig;
+            cmd.staConfig = newConfig;
+            m_pWifiNatRouterAppIf->SendCommand(cmd);
+            m_StaNetworkConfigSaved = true;
+        }
     }
 
-    m_StaNetworkConfigSaved = true;
 }   
 
 void WebServerServices::GetStaScannedNetworks(stanetworks * networks)
@@ -151,18 +168,15 @@ void WebServerServices::GetStaScannedNetworks(stanetworks * networks)
         { networks->net8_ssid, &networks->net8_rssi, &networks->net8_channel, networks->net8_auth}
     };
 
-    if (!m_ScannedNetworks.empty())
+    if (m_AppSnapshot.scannedCount > 0)
     {
-        auto noNetworksFound = std::min(m_ScannedNetworks.size(), size_t(8));
-        networks->networkFound = noNetworksFound;
-
-        for (size_t i = 0; i < noNetworksFound; i++) {
-            const auto &w = m_ScannedNetworks[i];
-            strncpy(nets[i].ssid, w.ssid.data(), sizeof(networks->net1_ssid) - 1);
-            *nets[i].rssi    = w.rssi;
-            *nets[i].channel = w.channel;
+        networks->networkFound = m_AppSnapshot.scannedCount;
+        for (size_t i = 0; i < m_AppSnapshot.scannedCount; i++) {
+            strncpy(nets[i].ssid, m_AppSnapshot.scannedNetworks[i].ssid.data(), sizeof(networks->net1_ssid) - 1);
+            *nets[i].rssi    = m_AppSnapshot.scannedNetworks[i].rssi;
+            *nets[i].channel = m_AppSnapshot.scannedNetworks[i].channel;
             strncpy(nets[i].auth,
-                    WifiNatRouter::getAuthString(w.auth).data(), sizeof(networks->net1_auth) - 1);
+                    WifiNatRouter::getAuthString(m_AppSnapshot.scannedNetworks[i].auth).data(), sizeof(networks->net1_auth) - 1);
         }
     
     }
@@ -170,67 +184,33 @@ void WebServerServices::GetStaScannedNetworks(stanetworks * networks)
 
 void WebServerServices::StartStaScannningNetworks(struct mg_str body)
 {
-    if (m_ScanningRequested)
+    if (m_AppSnapshot.scanState == WifiNatRouter::ScannerState::Scanning)
         return;
 
-    m_ScanningRequested = true;
-    m_pWifiNatRouter->GetScanner()->Scan();
-
-    glue_update_state();
+    WifiNatRouterApp::Command cmd;
+    cmd.cmd = WifiNatRouterApp::WifiNatRouterCmd::CmdStartScan;
+    m_pWifiNatRouterAppIf->SendCommand(cmd);
 }
 
 bool WebServerServices::IsStaScannningInProgress(void)
 {
-    return m_ScanningRequested.load();
-}
-
-void WebServerServices::WifiScannerCb(WifiNatRouter::
-ScannerState state)
-{
-    if(state == WifiNatRouter::
-ScannerState::Done)
-    {
-        m_ScannedNetworks.clear();
-        auto scannedNetworks = m_pWifiNatRouter->GetScanner()->GetResults();
-        for (const auto & network : scannedNetworks)
-        {
-            m_ScannedNetworks.emplace_back(
-                WifiNatRouter::
-WifiNetwork(
-                    reinterpret_cast<const uint8_t*>(network.ssid.data()),
-                    network.ssid.size(),
-                    reinterpret_cast<const uint8_t*>(network.bssid.data()),
-                    network.bssid.size(),
-                    network.rssi,
-                    network.channel,
-                    network.auth
-                )
-            );
-        }
-        glue_update_state();
-        m_ScanningRequested = false;
-    }
+    return m_AppSnapshot.scanState == WifiNatRouter::ScannerState::Scanning;
 }
 
 void WebServerServices::GetWifiNatRouterInfo(info * info)
 {
-    WifiNatRouter::
-StaConfig staConfig = m_pNetworkConfigManager->GetStaConfig();
-    WifiNatRouter::
-AccessPointConfig apConfig = m_pNetworkConfigManager->GetApConfig();
+    WifiNatRouter::StaConfig staConfig = m_AppSnapshot.config.staConfig;
+    WifiNatRouter::AccessPointConfig apConfig = m_AppSnapshot.config.apConfig;
     
     strncpy(info->AP, apConfig.ssid.data() ,sizeof(info->AP) - 1);
     strncpy(info->STA, staConfig.ssid.data() ,sizeof(info->STA) - 1);
 
-    WifiNatRouter::
-WifiNatRouterState state = m_pWifiNatRouter->GetState();
-    strncpy(info->State, WifiNatRouter::
-WifiNatRouterHelpers::WifiNatRouterStaToString(state).data(), sizeof(info->State) - 1);
+    WifiNatRouter::WifiNatRouterState state{m_AppSnapshot.routerState};
+    strncpy(info->State, WifiNatRouter::WifiNatRouterHelpers::WifiNatRouterStaToString(state).data(), sizeof(info->State) - 1);
 
-    info->Clients = m_pWifiNatRouter->GetNoClients();
-    info->StaConn = state == WifiNatRouter::
-WifiNatRouterState::RUNNING;
-    info->StaIa = m_IsInternetAvailable;
+    info->Clients = m_AppSnapshot.scannedCount;
+    info->StaConn = state == WifiNatRouter::WifiNatRouterState::RUNNING;
+    info->StaIa = m_AppSnapshot.internetAccess;
 }
 
 void WebServerServices::SetWifiNatRouterInfo(info * info)
@@ -250,70 +230,36 @@ bool WebServerServices::IsSaveEventFinished()
 
 void WebServerServices::StartWifiNatRouterWithNewConfig(struct mg_str body)
 {
-    bool updateStaSettings = m_StaNetworkConfigSaved && m_pNetworkConfigManager->GetStaConfig() != m_PendingStaConfig;
-    bool updateApSettings = m_ApNetworkConfigSaved && m_pNetworkConfigManager->GetApConfig() != m_PendingApConfig;
+    if (m_AppSnapshot.configApplyInProgress) return;
 
-    WifiNatRouter::
-WifiNatRouterConfig newConfig(
-        updateApSettings ? m_PendingApConfig : m_pNetworkConfigManager->GetApConfig(),
-        updateStaSettings ? m_PendingStaConfig : m_pNetworkConfigManager->GetStaConfig()
-    );
-
-    WifiNatRouter::
-WifiNatRouterConfig::printConfig(newConfig);
-
-    m_ConfigChangeInProgress = m_pWifiNatRouter->UpdateConfig(newConfig);
-
-    if(!m_ConfigChangeInProgress) return;
-
-    if (updateStaSettings)
+    if (m_StaNetworkConfigSaved || m_ApNetworkConfigSaved)
     {
-        m_pNetworkConfigManager->SetStaConfig(m_PendingStaConfig);
+        WifiNatRouterApp::Command cmd;
+        cmd.cmd = WifiNatRouterApp::WifiNatRouterCmd::CmdApplyNetConfig;
+        m_pWifiNatRouterAppIf->SendCommand(cmd);
+        m_NewConfigPendingInProgress = true;
     }
 
-    if (updateApSettings)
-    {
-        m_pNetworkConfigManager->SetApConfig(m_PendingApConfig);
-    }
 }
         
 bool WebServerServices::IsApplyDisabled(void)
 {
-    WifiNatRouter::
-WifiNatRouterState natRouterState = m_pWifiNatRouter->GetState();
-
-    if ((natRouterState == WifiNatRouter::
+    if ((m_AppSnapshot.routerState == WifiNatRouter::
 WifiNatRouterState::STOPPING) ||
-        (natRouterState == WifiNatRouter::
+        (m_AppSnapshot.routerState == WifiNatRouter::
 WifiNatRouterState::STOPPED)  ||
-        (natRouterState == WifiNatRouter::
+        (m_AppSnapshot.routerState == WifiNatRouter::
 WifiNatRouterState::NEW_CONFIGURATION_PENDING) ||
-        (natRouterState == WifiNatRouter::
+        (m_AppSnapshot.routerState == WifiNatRouter::
 WifiNatRouterState::STARTED)
     )
     {
         return true;
     }
 
-    if (!m_StaNetworkConfigSaved && !m_ApNetworkConfigSaved) return true;
+    if (m_AppSnapshot.configApplyInProgress) return true;
 
-    bool isStaConfigHasChanged = false;
-    if (m_StaNetworkConfigSaved)
-    {
-        const WifiNatRouter::
-StaConfig & actualStaConfig = m_pNetworkConfigManager->GetStaConfig();
-        isStaConfigHasChanged = m_PendingStaConfig != actualStaConfig;
-    }
-
-    bool isApConfigHasChanged = false;
-    if (m_ApNetworkConfigSaved)
-    {
-        const WifiNatRouter::
-AccessPointConfig & actualApConfig = m_pNetworkConfigManager->GetApConfig();
-        isApConfigHasChanged = m_PendingApConfig != actualApConfig;
-    }
-
-    return !(isApConfigHasChanged || isStaConfigHasChanged);
+    return !(m_StaNetworkConfigSaved || m_ApNetworkConfigSaved);
 }
 
 void WebServerServices::Update()
@@ -323,6 +269,13 @@ void WebServerServices::Update()
 
     if (!m_RefreshRequired){
         m_RefreshRequired = memcmp(&m_PrevAppSnapshot, &m_AppSnapshot, sizeof(WifiNatRouterApp::AppSnapshot)) == 0;
+    }
+
+    if (m_NewConfigPendingInProgress && m_AppSnapshot.configApplyInProgress && !m_PrevAppSnapshot.configApplyInProgress)
+    {
+        m_StaNetworkConfigSaved = false;
+        m_ApNetworkConfigSaved = false;
+        m_NewConfigPendingInProgress = false;
     }
 }
 
@@ -334,4 +287,3 @@ void WebServerServices::Refresh()
         m_RefreshRequired = false;
     }
 }
-

@@ -2,6 +2,7 @@
 
 #include "user_credential_manager/user_credential_manager.hpp"
 #include "wifi_nat_router_if/wifi_nat_router_if.hpp"
+#include "wifi_nat_router_app_if.hpp"
 #include "mongoose/mongoose_glue.h"
 
 #include <atomic>
@@ -53,10 +54,14 @@ class WebServerServices
     private:
 
         static WifiNatRouterApp::WifiNatRouterAppIf * m_pWifiNatRouterAppIf;
+        static UserCredential::UserCredentialManager * m_pUserCredentialManager;
 
         static WifiNatRouterApp::AppSnapshot m_PrevAppSnapshot;
         static WifiNatRouterApp::AppSnapshot m_AppSnapshot;
         static bool m_RefreshRequired;
+        static bool m_StaNetworkConfigSaved;
+        static bool m_ApNetworkConfigSaved;
+        static bool m_NewConfigPendingInProgress;
 
         struct NetView {
             char *ssid;

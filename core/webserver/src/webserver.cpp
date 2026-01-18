@@ -1,11 +1,8 @@
-#include "webserver.hpp"
+#include "webserver/webserver.hpp"
 #include "webserver_srvs.hpp"
 #include "esp_log.h"
 
 void WebServer::WebServerMain(void *pArg) {
-
-    WebServer * pInstance = reinterpret_cast<WebServer*>(pArg);
-
     ESP_LOGI("MONGOOSE", "run_mongoose started");
     mongoose_init();
     mongoose_set_auth_handler(WebServerServices::AuthenticateUser);
@@ -33,8 +30,6 @@ WebServer & WebServer::GetInstance()
 
 void WebServer::Startup(WifiNatRouterApp::WifiNatRouterAppIf * pWifiNatRouterAppIf)
 {
-
-
     if (!m_WebServerThreadRunning)
     {
         assert(pWifiNatRouterAppIf != nullptr);
