@@ -59,9 +59,12 @@ class WebServerServices
         static WifiNatRouterApp::AppSnapshot m_PrevAppSnapshot;
         static WifiNatRouterApp::AppSnapshot m_AppSnapshot;
         static bool m_RefreshRequired;
-        static bool m_StaNetworkConfigSaved;
-        static bool m_ApNetworkConfigSaved;
-        static bool m_NewConfigPendingInProgress;
+
+        static void delayAfterCmd()
+        {
+            constexpr uint32_t CMD_APPLY_DELAY_TIME_MS = 100;
+            vTaskDelay(pdMS_TO_TICKS(CMD_APPLY_DELAY_TIME_MS));
+        };
 
         struct NetView {
             char *ssid;

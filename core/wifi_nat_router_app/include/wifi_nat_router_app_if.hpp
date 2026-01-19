@@ -38,6 +38,7 @@ struct AppSnapshot{
     uint8_t scannedCount;
     WifiNatRouter::ScannerState scanState;
     bool configApplyInProgress;
+    bool readyForApplyingConfig;
     bool internetAccess;
     int noApClients;
 
@@ -49,7 +50,8 @@ struct AppSnapshot{
                 scanState == o.scanState &&
                 configApplyInProgress == o.configApplyInProgress &&
                 internetAccess == o.internetAccess &&
-                noApClients == o.noApClients;
+                noApClients == o.noApClients &&
+                readyForApplyingConfig == o.readyForApplyingConfig;
     }
 };
 

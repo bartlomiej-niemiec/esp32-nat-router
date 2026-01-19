@@ -239,6 +239,21 @@ bool WifiManager::UpdateConfig(const WifiNatRouterConfig & config)
     return res;
 }
 
+bool WifiManager::UpdateConfig(const WifiNatRouterConfig & config, bool apConfigHasChanged)
+{
+    const auto cacheNoClients = m_WifiManagerContext.m_ApClientsCounter;
+    if (apConfigHasChanged)
+    {
+        m_WifiManagerContext.m_ApClientsCounter = 0;
+    }
+    const bool res = UpdateConfig(config);
+    if (!res && apConfigHasChanged)
+    {
+        m_WifiManagerContext.m_ApClientsCounter = cacheNoClients;
+    }
+    return res;
+}
+
 bool WifiManager::TryToReconnect()
 {   
     if (m_ReconnectCounterVal == RECONNECT_COUNTER_ATTEMPTS_COUNT)

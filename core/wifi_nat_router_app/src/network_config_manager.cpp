@@ -7,7 +7,6 @@ NetworkConfigManager::NetworkConfigManager():
 {
     auto apConfigEntry = m_DataStorer.GetDataEntry<WifiNatRouter::
 AccessPointConfig>(m_ApConfigNvsKey);
-    apConfigEntry.Remove(); 
     if (apConfigEntry.GetData(m_ApConfig) == DataStorage::DataRawStorerIf::ReadStatus::NOT_FOUND)
     {
         ESP_LOGI("NetworkConfigManager", "Setting AP default config");

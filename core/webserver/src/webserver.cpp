@@ -4,6 +4,9 @@
 
 void WebServer::WebServerMain(void *pArg) {
     ESP_LOGI("MONGOOSE", "run_mongoose started");
+
+    WebServer * pIntance = reinterpret_cast<WebServer*>(pArg);
+    WebServerServices::Init(pIntance->m_pWifiNatRouterAppIf);
     mongoose_init();
     mongoose_set_auth_handler(WebServerServices::AuthenticateUser);
     mongoose_set_http_handlers("info", WebServerServices::GetWifiNatRouterInfo, WebServerServices::SetWifiNatRouterInfo);
@@ -13,9 +16,9 @@ void WebServer::WebServerMain(void *pArg) {
     mongoose_set_http_handlers("savestasettings", WebServerServices::GetStaSettings, WebServerServices::SetStaSetings);
     mongoose_set_http_handlers("applynetworkconfig", WebServerServices::IsApplyDisabled, WebServerServices::StartWifiNatRouterWithNewConfig);
     mongoose_set_http_handlers("login", WebServerServices::GetLogin, WebServerServices::SetLogin);
-    mg_log_set(MG_LL_DEBUG);    // Set log level to debug
-    for(;;) {                   // Infinite event loop
-        mongoose_poll();        // Process network events
+    mg_log_set(MG_LL_DEBUG);    
+    for(;;) {                   
+        mongoose_poll();        
         WebServerServices::Update();
         WebServerServices::Refresh();
     }

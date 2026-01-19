@@ -72,7 +72,7 @@ bool WifiNatRouterImpl::UpdateConfig(const WifiNatRouterConfig & config)
 
         WifiNatRouterConfig newConfig(newApConfig, newStaConfig);
 
-        if (m_WifiManager.UpdateConfig(newConfig))
+        if (m_WifiManager.UpdateConfig(newConfig, isApNewConfig))
         {
             m_CurrentConfig = newConfig;
             return true;

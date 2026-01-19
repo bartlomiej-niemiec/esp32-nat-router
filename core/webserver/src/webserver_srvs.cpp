@@ -17,9 +17,6 @@ UserCredential::UserCredentialManager * WebServerServices::m_pUserCredentialMana
 WifiNatRouterApp::AppSnapshot WebServerServices::m_AppSnapshot{};
 WifiNatRouterApp::AppSnapshot WebServerServices::m_PrevAppSnapshot{};
 bool WebServerServices::m_RefreshRequired{false};
-bool WebServerServices::m_StaNetworkConfigSaved{false};
-bool WebServerServices::m_ApNetworkConfigSaved{false};
-bool WebServerServices::m_NewConfigPendingInProgress{false};
 
 
 void WebServerServices::Init(WifiNatRouterApp::WifiNatRouterAppIf * pWifiNatRouterAppIf)
@@ -65,7 +62,7 @@ void WebServerServices::GetApSetting(saveapsettings * settings)
 
 void WebServerServices::SetApSetting(saveapsettings * settings)
 {
-    if (m_NewConfigPendingInProgress || m_AppSnapshot.configApplyInProgress) return;
+    if (m_AppSnapshot.configApplyInProgress) return;
 
     if (static_cast<uint8_t>(strnlen(settings->password, sizeof(settings->password))) < ESP_IDF_MINIMAL_PASSWORD_SIZE) return;
 
@@ -88,7 +85,7 @@ WifiNatRouterHelpers::ConvertStringToIpAddress(settings->networkmask, netMask)) 
         cmd.cmd = WifiNatRouterApp::WifiNatRouterCmd::CmdSetApConfig;
         cmd.apConfig = pendingApConfig;
         m_pWifiNatRouterAppIf->SendCommand(cmd);
-        m_ApNetworkConfigSaved = true;
+        delayAfterCmd();
     }
 }
 
@@ -112,7 +109,7 @@ void WebServerServices::GetStaSettings(savestasettings * settings)
 
 void WebServerServices::SetStaSetings(savestasettings * settings)
 {
-    if (m_NewConfigPendingInProgress || m_AppSnapshot.configApplyInProgress) return;
+    if (m_AppSnapshot.configApplyInProgress) return;
 
     if (settings->SSIDNoId > 0)
     {
@@ -129,7 +126,7 @@ void WebServerServices::SetStaSetings(savestasettings * settings)
                 cmd.cmd = WifiNatRouterApp::WifiNatRouterCmd::CmdSetStaConfig;
                 cmd.staConfig = newConfig;
                 m_pWifiNatRouterAppIf->SendCommand(cmd);
-                m_StaNetworkConfigSaved = true;
+                delayAfterCmd();
             }
 
         }
@@ -147,7 +144,7 @@ void WebServerServices::SetStaSetings(savestasettings * settings)
             cmd.cmd = WifiNatRouterApp::WifiNatRouterCmd::CmdSetStaConfig;
             cmd.staConfig = newConfig;
             m_pWifiNatRouterAppIf->SendCommand(cmd);
-            m_StaNetworkConfigSaved = true;
+            delayAfterCmd();
         }
     }
 
@@ -190,11 +187,12 @@ void WebServerServices::StartStaScannningNetworks(struct mg_str body)
     WifiNatRouterApp::Command cmd;
     cmd.cmd = WifiNatRouterApp::WifiNatRouterCmd::CmdStartScan;
     m_pWifiNatRouterAppIf->SendCommand(cmd);
+    delayAfterCmd();
 }
 
 bool WebServerServices::IsStaScannningInProgress(void)
 {
-    return m_AppSnapshot.scanState == WifiNatRouter::ScannerState::Scanning;
+    return m_AppSnapshot.scanState != WifiNatRouter::ScannerState::Done;
 }
 
 void WebServerServices::GetWifiNatRouterInfo(info * info)
@@ -208,7 +206,7 @@ void WebServerServices::GetWifiNatRouterInfo(info * info)
     WifiNatRouter::WifiNatRouterState state{m_AppSnapshot.routerState};
     strncpy(info->State, WifiNatRouter::WifiNatRouterHelpers::WifiNatRouterStaToString(state).data(), sizeof(info->State) - 1);
 
-    info->Clients = m_AppSnapshot.scannedCount;
+    info->Clients = m_AppSnapshot.noApClients;
     info->StaConn = state == WifiNatRouter::WifiNatRouterState::RUNNING;
     info->StaIa = m_AppSnapshot.internetAccess;
 }
@@ -232,12 +230,12 @@ void WebServerServices::StartWifiNatRouterWithNewConfig(struct mg_str body)
 {
     if (m_AppSnapshot.configApplyInProgress) return;
 
-    if (m_StaNetworkConfigSaved || m_ApNetworkConfigSaved)
+    if (m_AppSnapshot.readyForApplyingConfig)
     {
         WifiNatRouterApp::Command cmd;
         cmd.cmd = WifiNatRouterApp::WifiNatRouterCmd::CmdApplyNetConfig;
         m_pWifiNatRouterAppIf->SendCommand(cmd);
-        m_NewConfigPendingInProgress = true;
+        delayAfterCmd();
     }
 
 }
@@ -259,7 +257,7 @@ WifiNatRouterState::STARTED)
 
     if (m_AppSnapshot.configApplyInProgress) return true;
 
-    return !(m_StaNetworkConfigSaved || m_ApNetworkConfigSaved);
+    return !m_AppSnapshot.readyForApplyingConfig;
 }
 
 void WebServerServices::Update()
@@ -269,17 +267,11 @@ void WebServerServices::Update()
     }
 
     m_PrevAppSnapshot = m_AppSnapshot;
-    m_pWifiNatRouterAppIf->TryGetSnapshot(m_AppSnapshot);
+
+    if (!m_pWifiNatRouterAppIf->TryGetSnapshot(m_AppSnapshot)) return;
 
     if (!m_RefreshRequired){
         m_RefreshRequired = !(m_PrevAppSnapshot == m_AppSnapshot);
-    }
-
-    if (m_NewConfigPendingInProgress && m_AppSnapshot.configApplyInProgress && !m_PrevAppSnapshot.configApplyInProgress)
-    {
-        m_StaNetworkConfigSaved = false;
-        m_ApNetworkConfigSaved = false;
-        m_NewConfigPendingInProgress = false;
     }
 }
 

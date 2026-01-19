@@ -118,6 +118,8 @@ class WifiManager:
 
         bool UpdateConfig(const WifiNatRouterConfig & config);
 
+        bool UpdateConfig(const WifiNatRouterConfig & config, bool apConfigHasChanged);
+
         bool TryToReconnect();
         
         WifiNatRouterState GetState() const;

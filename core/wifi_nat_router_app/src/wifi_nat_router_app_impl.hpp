@@ -11,10 +11,13 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/semphr.h"
 
 #include "internet_activity_monitor.hpp"
 
 #include "esp_timer.h"
+
+#include "utils/MutexLockGuard.hpp"
 
 #include <string_view>
 #include <optional>
@@ -88,10 +91,11 @@ class WifiNatRouterAppImpl:
         static constexpr int TASK_PRIORITY = 4;
         TaskHandle_t m_MainTask;
 
-        AppSnapshot m_CachedAppSnapshot;
-
-        bool m_NewConfigInProgress;
+        AppSnapshot m_WorkingAppSnapshot;
+        AppSnapshot m_ApiSnapShot;
         WifiNatRouter::WifiNatRouterConfig m_PendingConfig;
+
+        mutable SemaphoreHandle_t m_SnapshotMutex;
 
         static void MainLoop(void *pArg);
 
@@ -99,6 +103,7 @@ class WifiNatRouterAppImpl:
 
         void ProcessCommandQueue();
 
+        void CommitSnapshot();
 };
 
 }

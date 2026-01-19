@@ -15,5 +15,6 @@ idf_component_register(
                                     rgbled_sk68xxminihs
                                     data_storer_if
                                     data_storer_nvs_impl
-                                    esp_timer         
+                                    esp_timer
+                                    utils     
 )

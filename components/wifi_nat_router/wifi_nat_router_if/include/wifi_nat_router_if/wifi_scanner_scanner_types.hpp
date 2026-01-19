@@ -41,7 +41,6 @@ struct WifiNetwork {
         memcpy(ssid.data(), pssid, size);
         ssid[size] = '\0';
 
-
         assert(bssid_size <= MAX_BSSID_SIZE);
         size = std::min((int)bssid_size, MAX_BSSID_SIZE - 1);
         memcpy(bssid.data(), pbssid, size);

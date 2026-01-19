@@ -6,8 +6,8 @@
 class MutexLockGuard
 {
     public:
-        explicit MutexLockGuard (SemaphoreHandle_t mutex);
-
+        explicit MutexLockGuard (SemaphoreHandle_t mutex, TickType_t block_time_tick = portMAX_DELAY);
+        bool locked() const { return m_locked; }
         ~MutexLockGuard();
     private:
 

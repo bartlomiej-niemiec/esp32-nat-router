@@ -15,7 +15,8 @@ WifiNatRouterAppImpl::WifiNatRouterAppImpl(WifiNatRouter::WifiNatRouterIf & rWif
     m_InternetActivityMonitor(m_EventQueue),
     m_InternetActivityTimer(nullptr),
     m_MainTask(nullptr),
-    m_CachedAppSnapshot()
+    m_WorkingAppSnapshot(),
+    m_SnapshotMutex(nullptr)
 {
     if (ENABLE_RGB_LED)
     {
@@ -23,6 +24,16 @@ WifiNatRouterAppImpl::WifiNatRouterAppImpl(WifiNatRouter::WifiNatRouterIf & rWif
     }
 
     m_rWifiNatRouter.RegisterListener(&m_EventDispatcher);
+
+    m_rWifiNatRouter.GetScanner()->RegisterStateListener(
+        [this](WifiNatRouter::ScannerState state){
+            if (state == WifiNatRouter::ScannerState::Done){
+                WifiNatRouterAppEventQueue::Message event;
+                event.event = WifiNatRouterAppEventQueue::WifiNatRouterEvent::WifiNetworkScanDone;
+                m_EventQueue.Add(event);
+            }
+        }
+    );
 
     esp_timer_create_args_t internetAccessTimerArgs = {
         .callback = InternetActivityTimerCb,
@@ -37,6 +48,12 @@ WifiNatRouterAppImpl::WifiNatRouterAppImpl(WifiNatRouter::WifiNatRouterIf & rWif
         &m_InternetActivityTimer
     )); 
 
+    m_SnapshotMutex = xSemaphoreCreateMutex();
+    assert(m_SnapshotMutex != nullptr);
+
+    m_PendingConfig.apConfig = m_NetworkConfigManager.GetApConfig();
+    m_PendingConfig.staConfig = m_NetworkConfigManager.GetStaConfig();
+
     xTaskCreate(
             MainLoop,
             TASK_NAME.data(),
@@ -50,7 +67,15 @@ WifiNatRouterAppImpl::WifiNatRouterAppImpl(WifiNatRouter::WifiNatRouterIf & rWif
 
 WifiNatRouterAppImpl::~WifiNatRouterAppImpl()
 {
-    vTaskDelete(m_MainTask);
+    if (m_MainTask)
+    {
+        vTaskDelete(m_MainTask);
+    }
+    
+    if (m_SnapshotMutex) {
+        vSemaphoreDelete(m_SnapshotMutex);
+        m_SnapshotMutex = nullptr;
+    }
 }
 
 bool WifiNatRouterAppImpl::SendCommand(const Command & cmd)
@@ -60,7 +85,9 @@ bool WifiNatRouterAppImpl::SendCommand(const Command & cmd)
 
 bool WifiNatRouterAppImpl::TryGetSnapshot(AppSnapshot& out) const
 {
-    out = m_CachedAppSnapshot;
+    MutexLockGuard lock(m_SnapshotMutex, 0);
+    if (!lock.locked()) return false;
+    out = m_ApiSnapShot;
     return true;
 }
 
@@ -79,19 +106,22 @@ void WifiNatRouterAppImpl::MainLoop(void *pArg)
         {pInstance->m_NetworkConfigManager.GetApConfig(), pInstance->m_NetworkConfigManager.GetStaConfig()}
     );
 
-    pInstance->m_CachedAppSnapshot.config = {pInstance->m_NetworkConfigManager.GetApConfig(), pInstance->m_NetworkConfigManager.GetStaConfig()};
-    pInstance->m_CachedAppSnapshot.routerState = pInstance->m_rWifiNatRouter.GetState();
-    pInstance->m_CachedAppSnapshot.scannedNetworks = {};
-    pInstance->m_CachedAppSnapshot.scannedCount = 0;
-    pInstance->m_CachedAppSnapshot.scanState = pInstance->m_rWifiNatRouter.GetScanner()->GetCurrentState();
-    pInstance->m_CachedAppSnapshot.configApplyInProgress = false;
-    pInstance->m_CachedAppSnapshot.internetAccess = false;
-    pInstance->m_CachedAppSnapshot.noApClients = 0;
+    pInstance->m_WorkingAppSnapshot.config = {pInstance->m_NetworkConfigManager.GetApConfig(), pInstance->m_NetworkConfigManager.GetStaConfig()};
+    pInstance->m_WorkingAppSnapshot.routerState = pInstance->m_rWifiNatRouter.GetState();
+    pInstance->m_WorkingAppSnapshot.scannedNetworks = {};
+    pInstance->m_WorkingAppSnapshot.scannedCount = 0;
+    pInstance->m_WorkingAppSnapshot.scanState = pInstance->m_rWifiNatRouter.GetScanner()->GetCurrentState();
+    pInstance->m_WorkingAppSnapshot.configApplyInProgress = false;
+    pInstance->m_WorkingAppSnapshot.internetAccess = false;
+    pInstance->m_WorkingAppSnapshot.noApClients = 0;
+
+    pInstance->m_ApiSnapShot = pInstance->m_WorkingAppSnapshot;
 
     for (;;)
     {
         pInstance->ProcessEventQueue();
         pInstance->ProcessCommandQueue();
+        pInstance->CommitSnapshot();
         vTaskDelay(TASK_DELAY_TICKS);
     }
 }
@@ -111,21 +141,14 @@ void WifiNatRouterAppImpl::ProcessEventQueue()
                     m_pLed->Update(msg.newState);
                 }
 
-                m_CachedAppSnapshot.routerState = msg.newState;
-                if (m_NewConfigInProgress && msg.newState == WifiNatRouter::WifiNatRouterState::CONNECTING)
+                m_WorkingAppSnapshot.routerState = msg.newState;
+                if (m_WorkingAppSnapshot.configApplyInProgress && msg.newState == WifiNatRouter::WifiNatRouterState::CONNECTING)
                 {
-                    m_NewConfigInProgress = false;
+                    m_WorkingAppSnapshot.configApplyInProgress = false;
+                    m_WorkingAppSnapshot.readyForApplyingConfig = false;
                 }
 
-                /// TODO - handle it in command queue
-                if (msg.newState == WifiNatRouter::WifiNatRouterState::NEW_CONFIGURATION_PENDING)
-                {
-                    if(esp_timer_is_active(m_InternetActivityTimer))
-                    {
-                        esp_timer_stop(m_InternetActivityTimer);
-                    }
-                }
-                else if (msg.newState == WifiNatRouter::WifiNatRouterState::RUNNING)
+                if (msg.newState == WifiNatRouter::WifiNatRouterState::RUNNING)
                 {
                     m_InternetActivityMonitor.Check();
                     if (!esp_timer_is_active(m_InternetActivityTimer))
@@ -136,39 +159,47 @@ void WifiNatRouterAppImpl::ProcessEventQueue()
                         ));
                     }
                 }
+                else
+                {
+                    if(esp_timer_is_active(m_InternetActivityTimer))
+                    {
+                        esp_timer_stop(m_InternetActivityTimer);
+                    }
+                }
             }
             break;
 
             case WifiNatRouterAppEventQueue::WifiNatRouterEvent::InternetStatus:
             {
                 // TODO Update LED
-                m_CachedAppSnapshot.internetAccess = msg.InternetAccess;
+                m_WorkingAppSnapshot.internetAccess = msg.InternetAccess;
             }
             break;
 
             case WifiNatRouterAppEventQueue::WifiNatRouterEvent::WifiNetworkScanDone:
             {
                 const auto networks = m_rWifiNatRouter.GetScanner()->GetResults();
-                std::copy(std::begin(networks), std::end(networks), std::begin(m_CachedAppSnapshot.scannedNetworks));
-                m_CachedAppSnapshot.scannedCount = std::min(networks.size(), static_cast<size_t>(AppSnapshot::WIFI_NETWORK_SCAN_LIMIT));
-                m_CachedAppSnapshot.scanState = WifiNatRouter::ScannerState::Done;
+                m_WorkingAppSnapshot.scannedCount = std::min(networks.size(), static_cast<size_t>(AppSnapshot::WIFI_NETWORK_SCAN_LIMIT));
+                std::copy_n(std::begin(networks), m_WorkingAppSnapshot.scannedCount, std::begin(m_WorkingAppSnapshot.scannedNetworks));
             }
             break;
         }
     }
 
-    m_CachedAppSnapshot.noApClients = m_rWifiNatRouter.GetNoClients();
-    m_CachedAppSnapshot.configApplyInProgress = m_NewConfigInProgress;
-    m_CachedAppSnapshot.scanState = m_rWifiNatRouter.GetScanner()->GetCurrentState();
+    m_WorkingAppSnapshot.noApClients = m_rWifiNatRouter.GetNoClients();
+    m_WorkingAppSnapshot.scanState = m_rWifiNatRouter.GetScanner()->GetCurrentState();
+    m_WorkingAppSnapshot.readyForApplyingConfig = m_PendingConfig != m_WorkingAppSnapshot.config;
 
 }
 
 void WifiNatRouterAppImpl::ProcessCommandQueue()
 {
     WifiNatRouterApp::Command cmd;
+    
 
     if (m_CommandQueue.Receive(cmd))
     {
+
         switch (cmd.cmd)
         {
             case WifiNatRouterApp::WifiNatRouterCmd::CmdStartScan:
@@ -191,7 +222,13 @@ void WifiNatRouterAppImpl::ProcessCommandQueue()
 
             case WifiNatRouterApp::WifiNatRouterCmd::CmdApplyNetConfig:
             {
-                m_NewConfigInProgress = m_rWifiNatRouter.UpdateConfig(m_PendingConfig);
+                m_WorkingAppSnapshot.configApplyInProgress = m_rWifiNatRouter.UpdateConfig(m_PendingConfig);
+                if (m_WorkingAppSnapshot.configApplyInProgress)
+                {
+                    m_NetworkConfigManager.SetApConfig(m_PendingConfig.apConfig);
+                    m_NetworkConfigManager.SetStaConfig(m_PendingConfig.staConfig);
+                    m_WorkingAppSnapshot.config = m_PendingConfig;
+                }
             }
             break;
 
@@ -216,13 +253,28 @@ void WifiNatRouterAppImpl::ProcessCommandQueue()
                 m_NetworkConfigManager.SetApConfig(defaultApConfig);
                 m_NetworkConfigManager.SetStaConfig(defaultStaConfig);
 
-                m_NewConfigInProgress = m_rWifiNatRouter.UpdateConfig({defaultApConfig, defaultStaConfig});
+                m_WorkingAppSnapshot.configApplyInProgress = m_rWifiNatRouter.UpdateConfig({defaultApConfig, defaultStaConfig});
+                if (m_WorkingAppSnapshot.configApplyInProgress)
+                {
+                    m_PendingConfig = {defaultApConfig, defaultStaConfig};
+                    m_WorkingAppSnapshot.config = m_PendingConfig;
+                    m_WorkingAppSnapshot.readyForApplyingConfig = false;
+                }
+
             }
             break;
 
         }
     }
 
+}
+
+void WifiNatRouterAppImpl::CommitSnapshot()
+{
+     MutexLockGuard lock(m_SnapshotMutex, pdMS_TO_TICKS(5));
+    if (lock.locked()) {
+        m_ApiSnapShot = m_WorkingAppSnapshot;
+    }
 }
 
 }
