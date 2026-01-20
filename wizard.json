@@ -144,7 +144,7 @@
       "bgColor": "#282829"
     }, 
     "pages": [
-      {"title": "Dashboard", "icon": "desktop", "level": 0, "css": "flex: 0 0 auto;\nwidth: 935px;\nheight: 506.859375px;\npadding: 0.75rem;\ngap: 0.5rem;\nmin-height: 2rem;\ndisplay: flex;\nflex-direction: column;\nflex-grow: 1;\noverflow: auto;", "layout": [
+      {"title": "Dashboard", "icon": "desktop", "level": 0, "css": "padding: 0.75rem;\ngap: 0.5rem;\nmin-height: 2rem;\ndisplay: flex;\nflex-direction: column;\nflex-grow: 1;\noverflow: auto;", "layout": [
           {"classes": "container", "css": "flex: 0 0 auto;\nheight: 404px;\nwidth: 911px;\nflex-wrap: wrap;\ngap: 0.5rem;", "layout": [
               {"classes": "card", "layout": [
                   {"classes": "card", "layout": [
@@ -201,7 +201,7 @@
                 ], "css": "flex: 0 0 auto;\nheight: 303px;\nwidth: 532px;"}
             ]}
         ]},
-      {"title": "Network Settings", "icon": "settings", "css": "flex: 0 0 auto;\nwidth: 1095px;\nheight: 1223px;\npadding: 0.75rem;\ngap: 0.5rem;\nmin-height: 2rem;\ndisplay: flex;\nflex-direction: column;\nflex-grow: 1;\noverflow: auto;", "layout": [
+      {"title": "Network Settings", "icon": "settings", "css": "padding: 0.75rem;\ngap: 0.5rem;\nmin-height: 2rem;\ndisplay: flex;\nflex-direction: column;\nflex-grow: 1;\noverflow: auto;", "layout": [
           {"classes": "container", "css": "flex: 0 0 auto;\nheight: 958px;\nwidth: 1071px;\nflex-wrap: wrap;\ngap: 0.5rem;", "layout": [
               {"type": "action", "title": "Apply Config", "icon": "refresh", "ref": "applynetworkconfig", "css": "font-size: 1.2rem;\nflex: 0 0 auto;\nheight: 46px;\nwidth: 1071px;"},
               {"classes": "container", "css": "flex: 0 0 auto;\nheight: 483px;\nwidth: 490px;\ngap: 0.5rem;\nflex-wrap: wrap;", "layout": [

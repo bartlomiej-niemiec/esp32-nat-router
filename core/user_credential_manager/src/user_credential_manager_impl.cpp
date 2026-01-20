@@ -2,6 +2,7 @@
 #include "user_credential_manager/user_credential_manager_config.hpp"
 #include <data_storer_if/data_storer.hpp>
 #include <algorithm>
+#include <string>
 
 namespace UserCredential
 {
@@ -36,26 +37,20 @@ UserCredentialManager::UserCredentialManager():
     auto & dataStorer = DataStorage::DataStorer::GetInstance();
     auto dataEntry = dataStorer.GetDataEntry<UsersList>(userNamesNvs);
     
-    // for (auto & userEntry : m_UsersDb)
-    // {
-    //     std::memset(m_UsersDb.data(), 0, MAX_USERNAME_SIZE);
-    // }
-    // dataEntry.SetData(m_UsersDb);
-
-    // if (dataEntry.GetData(m_UsersDb) == DataStorage::DataRawStorerIf::ReadStatus::NOT_FOUND)
-    // {
-    //     dataEntry.SetData(m_UsersDb);
-    // }
-    // else
-    // {
-    //     for (auto & userEntry : m_UsersDb)
-    //     {
-    //         if (userEntry.empty()) break;
-    //         ESP_LOGI("UserCredentialManager", "User: %s has been found", userEntry.data());
-    //         m_Users.emplace(std::make_pair(userEntry.data(), User(userEntry.data())));
-    //         m_NoUsers++;
-    //     }
-    // }
+    if (dataEntry.GetData(m_UsersDb) == DataStorage::DataRawStorerIf::ReadStatus::NOT_FOUND)
+    {
+        dataEntry.SetData(m_UsersDb);
+    }
+    else
+    {
+        for (auto & userEntry : m_UsersDb)
+        {
+            if (strnlen(userEntry.data(), MAX_USERNAME_SIZE) == 0) break;
+            ESP_LOGI("UserCredentialManager", "User: %s has been found", userEntry.data());
+            m_Users.emplace(std::make_pair(userEntry.data(), User(userEntry.data())));
+            m_NoUsers++;
+        }
+    }
 
 }
 

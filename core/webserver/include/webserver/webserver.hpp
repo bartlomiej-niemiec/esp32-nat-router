@@ -41,8 +41,5 @@ class WebServer
 
         WifiNatRouterApp::WifiNatRouterAppIf * m_pWifiNatRouterAppIf;
 
-        TaskHandle_t m_WebServerTaskHandle;
-        
-        static int AuthenticateUser(const char *user, const char *pass);
-        
+        TaskHandle_t m_WebServerTaskHandle;    
 };
