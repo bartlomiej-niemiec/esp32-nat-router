@@ -10,7 +10,11 @@ StatusLed::StatusLed(const uint32_t gpio_pin_num):
     m_pStatusLed(nullptr),
     m_CachedRouterState(),
     m_CachedInternetAccess(false),
-    m_State(StatusLedState::NETWORK_STATUS)
+    m_State(StatusLedState::NETWORK_STATUS),
+    m_MainTask(nullptr),
+    m_MessageQueue(nullptr),
+    m_QueueStorage(),
+    m_MessageQueueBuffer()
 {
     auto rgbledfactory = RgbLed::RgbLedFactory::GetInstance();
     m_pStatusLed = rgbledfactory.Create(gpio_pin_num);
@@ -146,7 +150,7 @@ void StatusLed::UpdateLedInternetAccess(bool internetAvailable)
 {
     if (internetAvailable)
     {
-        static RgbLed::RgbColor internetAccessColor = RgbLed::RgbColorCreator::Create(RgbLed::Color::Green);
+        constexpr RgbLed::RgbColor internetAccessColor = RgbLed::RgbColorCreator::Create(RgbLed::Color::Green);
         m_pStatusLed->Solid(internetAccessColor);
     }
     else

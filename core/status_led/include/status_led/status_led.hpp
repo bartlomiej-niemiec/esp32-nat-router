@@ -48,8 +48,8 @@ class StatusLed
         std::unique_ptr<RgbLed::RgbLedIf> m_pStatusLed;
 
         enum class StatusLedState {
-                NETWORK_STATUS,
-                FACTORY_RESET_PENDING
+            NETWORK_STATUS,
+            FACTORY_RESET_PENDING
         };
 
         WifiNatRouter::WifiNatRouterState m_CachedRouterState;
@@ -57,7 +57,7 @@ class StatusLed
         StatusLedState m_State;
 
         static constexpr std::string_view TASK_NAME = "RGB_STATUS_LED";
-        static constexpr uint32_t TASK_STACK_SIZE =4096;
+        static constexpr uint32_t TASK_STACK_SIZE = 4096;
         static constexpr int TASK_PRIORITY = 2;
 
         TaskHandle_t m_MainTask;
