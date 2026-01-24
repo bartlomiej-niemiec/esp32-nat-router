@@ -2,6 +2,7 @@
 
 #include "wifi_nat_router_app_if.hpp"
 #include "wifi_nat_router_if/wifi_nat_router_if.hpp"
+#include "status_led/status_led.hpp"
 
 namespace WifiNatRouterApp
 {
@@ -13,7 +14,7 @@ class WifiNatRouterApp
 
     public:
 
-        WifiNatRouterApp(WifiNatRouter::WifiNatRouterIf & rWifiIf);
+        WifiNatRouterApp(WifiNatRouter::WifiNatRouterIf & rWifiIf, StatusLed::StatusLed * pStatusLed);
 
         ~WifiNatRouterApp();
 

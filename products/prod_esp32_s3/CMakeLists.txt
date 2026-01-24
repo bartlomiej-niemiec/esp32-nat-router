@@ -7,4 +7,5 @@ idf_component_register(SRCS "product_main.cpp"
                                 rgbled_sk68xxminihs_impl
                                 data_storer_nvs_impl
                                 webserver
+                                status_led
 )

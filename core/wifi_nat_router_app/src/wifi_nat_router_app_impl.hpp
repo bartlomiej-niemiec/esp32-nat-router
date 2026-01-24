@@ -6,7 +6,6 @@
 #include "wifi_nat_router_app_event_queue.hpp"
 #include "wifi_nat_router_app_command_queue.hpp"
 
-#include "network_status_led.hpp"
 #include "network_config_manager.hpp"
 
 #include "freertos/FreeRTOS.h"
@@ -14,6 +13,8 @@
 #include "freertos/semphr.h"
 
 #include "internet_activity_monitor.hpp"
+
+#include "status_led/status_led.hpp"
 
 #include "esp_timer.h"
 
@@ -36,7 +37,8 @@ class WifiNatRouterAppImpl:
         ~WifiNatRouterAppImpl();
 
         WifiNatRouterAppImpl(
-            WifiNatRouter::WifiNatRouterIf & rWifiIf
+            WifiNatRouter::WifiNatRouterIf & rWifiIf,
+            StatusLed::StatusLed * pStatusLed
         );
 
         bool SendCommand(const Command & cmd);
@@ -75,8 +77,7 @@ class WifiNatRouterAppImpl:
         NetworkConfigManager m_NetworkConfigManager;
 
         WifiNatRouter::WifiNatRouterIf & m_rWifiNatRouter;
-
-        std::unique_ptr<NetworkStatusLed::NetworkStatusLed> m_pLed;
+        StatusLed::StatusLed  * m_pStatusLed;
 
         WifiNatRouterAppEventQueue m_EventQueue;
         WifiNatRouterAppCommandQueue m_CommandQueue;
