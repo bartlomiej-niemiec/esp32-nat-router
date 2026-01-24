@@ -6,10 +6,10 @@
 namespace WifiNatRouterApp
 {
 
-WifiNatRouterApp::WifiNatRouterApp(WifiNatRouter::WifiNatRouterIf & rWifiIf):
+WifiNatRouterApp::WifiNatRouterApp(WifiNatRouter::WifiNatRouterIf & rWifiIf, StatusLed::StatusLed * pStatusLed):
     m_pWifiNatRouterAppImpl(nullptr)
 {
-    m_pWifiNatRouterAppImpl = new (std::nothrow) WifiNatRouterAppImpl(rWifiIf);
+    m_pWifiNatRouterAppImpl = new (std::nothrow) WifiNatRouterAppImpl(rWifiIf, pStatusLed);
     assert(nullptr != m_pWifiNatRouterAppImpl);
 }
 

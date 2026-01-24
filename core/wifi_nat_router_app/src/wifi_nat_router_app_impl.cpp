@@ -5,10 +5,10 @@
 namespace WifiNatRouterApp
 {
 
-WifiNatRouterAppImpl::WifiNatRouterAppImpl(WifiNatRouter::WifiNatRouterIf & rWifiIf):
+WifiNatRouterAppImpl::WifiNatRouterAppImpl(WifiNatRouter::WifiNatRouterIf & rWifiIf,  StatusLed::StatusLed * pStatusLed):
     m_NetworkConfigManager(),
     m_rWifiNatRouter(rWifiIf),
-    m_pLed(nullptr),
+    m_pStatusLed(pStatusLed),
     m_EventQueue(),
     m_CommandQueue(),
     m_EventDispatcher(&m_EventQueue),
@@ -18,10 +18,7 @@ WifiNatRouterAppImpl::WifiNatRouterAppImpl(WifiNatRouter::WifiNatRouterIf & rWif
     m_WorkingAppSnapshot(),
     m_SnapshotMutex(nullptr)
 {
-    if (ENABLE_RGB_LED)
-    {
-        m_pLed = std::make_unique<NetworkStatusLed::NetworkStatusLed>(RGB_LED_GPIO_PIN);
-    }
+    assert(nullptr != m_pStatusLed);
 
     m_rWifiNatRouter.RegisterListener(&m_EventDispatcher);
 
@@ -136,9 +133,12 @@ void WifiNatRouterAppImpl::ProcessEventQueue()
         {
             case WifiNatRouterAppEventQueue::WifiNatRouterEvent::RouterState:
             {
-                if(m_pLed)
+                if (m_pStatusLed)
                 {
-                    m_pLed->Update(msg.newState);
+                    StatusLed::Status ledStatus;
+                    ledStatus.type = StatusLed::StatusType::NETWORK_STATUS_UPDATE;
+                    ledStatus.routerState = msg.newState;
+                    m_pStatusLed->Update(ledStatus);
                 }
 
                 m_WorkingAppSnapshot.routerState = msg.newState;
@@ -171,8 +171,14 @@ void WifiNatRouterAppImpl::ProcessEventQueue()
 
             case WifiNatRouterAppEventQueue::WifiNatRouterEvent::InternetStatus:
             {
-                // TODO Update LED
                 m_WorkingAppSnapshot.internetAccess = msg.InternetAccess;
+                if (m_pStatusLed)
+                {
+                    StatusLed::Status ledStatus;
+                    ledStatus.type = StatusLed::StatusType::INTERNET_ACCESS;
+                    ledStatus.internetAvailable = msg.InternetAccess;
+                    m_pStatusLed->Update(ledStatus);
+                }
             }
             break;
 
