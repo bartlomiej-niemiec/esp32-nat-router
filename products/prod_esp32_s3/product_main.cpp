@@ -41,10 +41,16 @@ void product_main(void)
 {
     for (;;)
     {
+        if (pFactoryResetButton)
+        {
+            pFactoryResetButton->MainLoop();
+        }
+
         if (pStatusLed)
         {
             pStatusLed->MainLoop();
         }
-        vTaskDelay(pdMS_TO_TICKS(50));
+
+        vTaskDelay(pdMS_TO_TICKS(20));
     }
 }
