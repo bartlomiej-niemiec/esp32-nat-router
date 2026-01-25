@@ -36,7 +36,7 @@ bool StatusLed::Update (const Status & status)
 void StatusLed::MainLoop()
 {
     Status msg;
-    static constexpr uint32_t MAX_EVENT_PROCESSING_PER_LOOP = 8;
+    static constexpr uint32_t MAX_EVENT_PROCESSING_PER_LOOP = 2;
 
     for (int i = 0; i < MAX_EVENT_PROCESSING_PER_LOOP;i++)
     {
