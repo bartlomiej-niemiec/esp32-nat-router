@@ -1,13 +1,14 @@
 #pragma once
 
 #include "wifi_nat_router_if/wifi_nat_router_config.hpp"
-#include "wifi_nat_router_if/wifi_nat_router_if.hpp"
 #include "rgbled_if/rgbled_if.hpp"
 #include "rgbled_if/rgbled_utils.hpp"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
+
+#include "status_led/status_led_if.hpp"
 
 #include <array>
 #include <memory>
@@ -16,26 +17,9 @@
 namespace StatusLed
 {
 
-enum class StatusType {
-    NETWORK_STATUS_UPDATE,
-    INTERNET_ACCESS,
-    FACTORY_RESET
-};
 
-enum class FactoryResetState {
-    START,
-    CANCEL,
-    DONE
-};
-
-struct Status {
-    StatusType type;
-    WifiNatRouter::WifiNatRouterState routerState;
-    bool internetAvailable;
-    FactoryResetState factoryResetState;
-};
-
-class StatusLed
+class StatusLed:
+    public StatusLedIf
 {
     public:
 
@@ -44,6 +28,8 @@ class StatusLed
         ~StatusLed();
 
         bool Update (const Status & status);
+
+        void MainLoop();
 
     private:
 
@@ -58,11 +44,6 @@ class StatusLed
         bool m_CachedInternetAccess;
         StatusLedState m_State;
 
-        static constexpr std::string_view TASK_NAME = "RGB_STATUS_LED";
-        static constexpr uint32_t TASK_STACK_SIZE = 4096;
-        static constexpr int TASK_PRIORITY = 2;
-
-        TaskHandle_t m_MainTask;
         QueueHandle_t m_MessageQueue;
         StaticQueue_t m_QueueStorage;
 
@@ -111,9 +92,7 @@ WifiNatRouterState state)
             using A::operator();
             using B::operator();
         };
-
-        static void MainLoop(void *pArg);
-
+        
         void UpdateLedRouterState(WifiNatRouter::WifiNatRouterState state);
 
         void UpdateLedInternetAccess(bool internetAvailable);

@@ -5,7 +5,7 @@
 namespace WifiNatRouterApp
 {
 
-WifiNatRouterAppImpl::WifiNatRouterAppImpl(WifiNatRouter::WifiNatRouterIf & rWifiIf,  StatusLed::StatusLed * pStatusLed):
+WifiNatRouterAppImpl::WifiNatRouterAppImpl(WifiNatRouter::WifiNatRouterIf & rWifiIf,  StatusLed::StatusLedIf * pStatusLed):
     m_NetworkConfigManager(),
     m_rWifiNatRouter(rWifiIf),
     m_pStatusLed(pStatusLed),

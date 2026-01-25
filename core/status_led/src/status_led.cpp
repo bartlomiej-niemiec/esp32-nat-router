@@ -11,7 +11,6 @@ StatusLed::StatusLed(const uint32_t gpio_pin_num):
     m_CachedRouterState(),
     m_CachedInternetAccess(false),
     m_State(StatusLedState::NETWORK_STATUS),
-    m_MainTask(nullptr),
     m_MessageQueue(nullptr),
     m_QueueStorage(),
     m_MessageQueueBuffer()
@@ -22,16 +21,6 @@ StatusLed::StatusLed(const uint32_t gpio_pin_num):
 
     m_MessageQueue = xQueueCreateStatic(MESSAGE_QUEUE_SIZE, sizeof(Status), m_MessageQueueBuffer, &m_QueueStorage);
     assert(nullptr != m_MessageQueue);
-
-    xTaskCreate(
-            MainLoop,
-            TASK_NAME.data(),
-            TASK_STACK_SIZE,
-            this,
-            TASK_PRIORITY,
-            &m_MainTask
-    );
-    assert(nullptr != m_MainTask);
 }
  
 StatusLed::~StatusLed()
@@ -44,94 +33,99 @@ bool StatusLed::Update (const Status & status)
     return xQueueSend(m_MessageQueue, &status, pdMS_TO_TICKS(5)) == pdTRUE;
 }
 
-void StatusLed::MainLoop(void *pArg)
+void StatusLed::MainLoop()
 {
-    assert(pArg != nullptr);
-    StatusLed * pInstance = reinterpret_cast<StatusLed*>(pArg);
     Status msg;
-    for (;;)
+    static constexpr uint32_t MAX_EVENT_PROCESSING_PER_LOOP = 8;
+
+    for (int i = 0; i < MAX_EVENT_PROCESSING_PER_LOOP;i++)
     {
         if (xQueueReceive(
-            pInstance->m_MessageQueue,
-            &msg,
-            portMAX_DELAY
+                m_MessageQueue,
+                &msg,
+                0
         ) == pdTRUE)
         {
-            switch(pInstance->m_State)
-            {
-                case StatusLedState::NETWORK_STATUS:
+            switch(m_State)
                 {
-                    switch(msg.type)
+                    case StatusLedState::NETWORK_STATUS:
                     {
-                        case StatusType::NETWORK_STATUS_UPDATE:
+                        switch(msg.type)
                         {
-                            pInstance->m_CachedRouterState = msg.routerState;
-                            pInstance->UpdateLedRouterState(msg.routerState);
-                        }
-                        break;
-
-                        case StatusType::INTERNET_ACCESS:
-                        {
-                            pInstance->m_CachedInternetAccess = msg.internetAvailable;
-                            pInstance->UpdateLedInternetAccess(msg.internetAvailable);
-                        }
-                        break;
-
-                        case StatusType::FACTORY_RESET:
-                        {
-                            if (msg.factoryResetState == FactoryResetState::START)
+                            case StatusType::NETWORK_STATUS_UPDATE:
                             {
-                                pInstance->m_State = StatusLedState::FACTORY_RESET_PENDING;
-                                pInstance->UpdateLedFactoryReset(FactoryResetState::START);
+                                m_CachedRouterState = msg.routerState;
+                                UpdateLedRouterState(msg.routerState);
                             }
-                        }
-                        break;
+                            break;
 
-                    };
-                }
-                break;
+                            case StatusType::INTERNET_ACCESS:
+                            {
+                                m_CachedInternetAccess = msg.internetAvailable;
+                                UpdateLedInternetAccess(msg.internetAvailable);
+                            }
+                            break;
 
-                case StatusLedState::FACTORY_RESET_PENDING:
-                {
-                    switch(msg.type)
+                            case StatusType::FACTORY_RESET:
+                            {
+                                if (msg.factoryResetState == FactoryResetState::START)
+                                {
+                                    m_State = StatusLedState::FACTORY_RESET_PENDING;
+                                    UpdateLedFactoryReset(FactoryResetState::START);
+                                }
+                            }
+                            break;
+
+                        };
+                    }
+                    break;
+
+                    case StatusLedState::FACTORY_RESET_PENDING:
                     {
-                        case StatusType::NETWORK_STATUS_UPDATE:
+                        switch(msg.type)
                         {
-                            pInstance->m_CachedRouterState = msg.routerState;
-                        }
-                        break;
-
-                        case StatusType::INTERNET_ACCESS:
-                        {
-                           pInstance->m_CachedInternetAccess = msg.internetAvailable;
-                        }
-                        break;
-
-                        case StatusType::FACTORY_RESET:
-                        {
-                            if (
-                            (msg.factoryResetState == FactoryResetState::CANCEL) ||
-                            (msg.factoryResetState == FactoryResetState::DONE)
-                            )
+                            case StatusType::NETWORK_STATUS_UPDATE:
                             {
-                                if (!(pInstance->m_CachedInternetAccess))
-                                {
-                                    pInstance->UpdateLedRouterState(pInstance->m_CachedRouterState);
-                                }
-                                else
-                                {
-                                    pInstance->UpdateLedInternetAccess(true);
-                                }
-                                pInstance->m_State = StatusLedState::NETWORK_STATUS;
+                                m_CachedRouterState = msg.routerState;
                             }
-                        }
-                        break;
+                            break;
 
-                    };
-                }   
-                break;
+                            case StatusType::INTERNET_ACCESS:
+                            {
+                            m_CachedInternetAccess = msg.internetAvailable;
+                            }
+                            break;
+
+                            case StatusType::FACTORY_RESET:
+                            {
+                                if (
+                                (msg.factoryResetState == FactoryResetState::CANCEL) ||
+                                (msg.factoryResetState == FactoryResetState::DONE)
+                                )
+                                {
+                                    if (!(m_CachedInternetAccess))
+                                    {
+                                        UpdateLedRouterState(m_CachedRouterState);
+                                    }
+                                    else
+                                    {
+                                        UpdateLedInternetAccess(true);
+                                    }
+                                    m_State = StatusLedState::NETWORK_STATUS;
+                                }
+                            }
+                            break;
+
+                        };
+                    }   
+                    break;
             };
         }
+        else
+        {
+            // No more events
+            break;
+        }   
     }
 }
 

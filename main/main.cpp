@@ -2,5 +2,6 @@
 
 extern "C" void app_main(void)
 {
+    product_init();
     product_main();
 }

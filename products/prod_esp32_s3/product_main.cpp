@@ -9,22 +9,33 @@
 
 #include "freertos/Freertos.h"
 
-void product_main(void)
+static StatusLed::StatusLed * pStatusLed = nullptr;
+static WifiNatRouterApp::WifiNatRouterApp * pApp = nullptr;
+
+void product_init(void)
 {
     DataStorage::DataStorer::Init();
 
-    StatusLed::StatusLed * pStatusLed = nullptr;
     if (ENABLE_RGB_LED)
     {
         pStatusLed = new (std::nothrow) StatusLed::StatusLed(RGB_LED_GPIO_PIN);
+        assert(pStatusLed);
     }
 
-    WifiNatRouterApp::WifiNatRouterApp app(WifiNatRouter::WifiNatRouterFactory::GetInstance().GetWifiNatRouter(), pStatusLed);
+    pApp = new (std::nothrow) WifiNatRouterApp::WifiNatRouterApp(WifiNatRouter::WifiNatRouterFactory::GetInstance().GetWifiNatRouter(), pStatusLed);
+    assert(pApp);
     WebServer & webServer = WebServer::GetInstance();
-    webServer.Startup(&app.GetAppIf());
+    webServer.Startup(&(pApp->GetAppIf()));
+}
 
+void product_main(void)
+{
     for (;;)
     {
-        vTaskDelay(pdMS_TO_TICKS(5000));
+        if (pStatusLed)
+        {
+            pStatusLed->MainLoop();
+        }
+        vTaskDelay(pdMS_TO_TICKS(50));
     }
 }
