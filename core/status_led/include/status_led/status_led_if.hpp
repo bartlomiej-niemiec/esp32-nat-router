@@ -14,6 +14,7 @@ enum class StatusType {
 enum class FactoryResetState {
     START,
     CANCEL,
+    DONE_WAIT_FOR_RELEASE,
     DONE
 };
 

@@ -70,8 +70,8 @@ void StatusLed::MainLoop()
                             {
                                 if (msg.factoryResetState == FactoryResetState::START)
                                 {
-                                    m_State = StatusLedState::FACTORY_RESET_PENDING;
                                     UpdateLedFactoryReset(FactoryResetState::START);
+                                    m_State = StatusLedState::FACTORY_RESET_PENDING;
                                 }
                             }
                             break;
@@ -99,8 +99,7 @@ void StatusLed::MainLoop()
                             case StatusType::FACTORY_RESET:
                             {
                                 if (
-                                (msg.factoryResetState == FactoryResetState::CANCEL) ||
-                                (msg.factoryResetState == FactoryResetState::DONE)
+                                (msg.factoryResetState == FactoryResetState::CANCEL)
                                 )
                                 {
                                     if (!(m_CachedInternetAccess))
@@ -111,6 +110,15 @@ void StatusLed::MainLoop()
                                     {
                                         UpdateLedInternetAccess(true);
                                     }
+                                    m_State = StatusLedState::NETWORK_STATUS;
+                                }
+                                else if (msg.factoryResetState == FactoryResetState::DONE_WAIT_FOR_RELEASE)
+                                {
+                                    UpdateLedFactoryReset(FactoryResetState::DONE_WAIT_FOR_RELEASE);
+                                }
+                                else if (msg.factoryResetState == FactoryResetState::DONE)
+                                {
+                                    UpdateLedRouterState(m_CachedRouterState);
                                     m_State = StatusLedState::NETWORK_STATUS;
                                 }
                             }
@@ -159,7 +167,27 @@ void StatusLed::UpdateLedInternetAccess(bool internetAvailable)
 
 void StatusLed::UpdateLedFactoryReset(FactoryResetState factoryResetState)
 {
-    //TODO
+    switch (factoryResetState)
+    {
+    
+        case FactoryResetState::START:
+        {
+            constexpr RgbLed::RgbColor factoryResetStart = RgbLed::RgbColorCreator::Create(RgbLed::Color::Purple);
+            m_pStatusLed->Blink(factoryResetStart, BLINK_1HZ);
+        }
+        break;
+
+        case FactoryResetState::DONE_WAIT_FOR_RELEASE:
+        {
+            constexpr RgbLed::RgbColor factoryResetDoneWaitForRelease = RgbLed::RgbColorCreator::Create(RgbLed::Color::Purple);
+            m_pStatusLed->Solid(factoryResetDoneWaitForRelease);
+        }
+        break;
+
+        default:
+            break;
+
+    };
 }
 
 

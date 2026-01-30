@@ -32,15 +32,9 @@ class FactoryResetPb
             DONE
         };
 
-        struct FactoryResetStatus{
-            std::atomic<uint32_t> m_FactoryButtonPressed;
-            std::atomic<FactoryResetProcessState> m_FactoryResetProcessState;
-            int64_t m_TimeOnPress;
-        };
-
-        FactoryResetStatus m_FactoryResetStatus;
-
-        static void ISR_HANDLER(void *arg);
+        FactoryResetProcessState m_FactoryResetProcessState;
+        int64_t m_TimeOnPress;
+        bool m_prevLevel;
 };
 
 }
