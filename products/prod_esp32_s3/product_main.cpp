@@ -30,7 +30,7 @@ void product_init(void)
     if (ENABLE_FACTORY_RESET_PB)
     {
         pFactoryResetButton = new (std::nothrow) FactoryReset::FactoryResetPb(FACTORY_RESET_GPIO_PIN, pStatusLed, &(pApp->GetAppIf()));
-        assert(pStatusLed);
+        assert(pFactoryResetButton);
     }
 
     WebServer & webServer = WebServer::GetInstance();
