@@ -38,7 +38,7 @@ class WifiNatRouterAppImpl:
 
         WifiNatRouterAppImpl(
             WifiNatRouter::WifiNatRouterIf & rWifiIf,
-            StatusLed::StatusLed * pStatusLed
+            StatusLed::StatusLedIf * pStatusLed
         );
 
         bool SendCommand(const Command & cmd);
@@ -77,7 +77,7 @@ class WifiNatRouterAppImpl:
         NetworkConfigManager m_NetworkConfigManager;
 
         WifiNatRouter::WifiNatRouterIf & m_rWifiNatRouter;
-        StatusLed::StatusLed  * m_pStatusLed;
+        StatusLed::StatusLedIf  * m_pStatusLed;
 
         WifiNatRouterAppEventQueue m_EventQueue;
         WifiNatRouterAppCommandQueue m_CommandQueue;

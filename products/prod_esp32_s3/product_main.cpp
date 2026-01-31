@@ -1,5 +1,6 @@
 #include "data_storer_if/data_storer.hpp"
 
+#include "factory_reset_pb/factory_reset_pb.hpp"
 #include "status_led/status_led.hpp"
 
 #include "product_config.hpp"
@@ -9,22 +10,48 @@
 
 #include "freertos/Freertos.h"
 
-void product_main(void)
+static StatusLed::StatusLed * pStatusLed = nullptr;
+static WifiNatRouterApp::WifiNatRouterApp * pApp = nullptr;
+static FactoryReset::FactoryResetPb * pFactoryResetButton = nullptr;
+
+void product_init(void)
 {
     DataStorage::DataStorer::Init();
 
-    StatusLed::StatusLed * pStatusLed = nullptr;
     if (ENABLE_RGB_LED)
     {
         pStatusLed = new (std::nothrow) StatusLed::StatusLed(RGB_LED_GPIO_PIN);
+        assert(pStatusLed);
     }
 
-    WifiNatRouterApp::WifiNatRouterApp app(WifiNatRouter::WifiNatRouterFactory::GetInstance().GetWifiNatRouter(), pStatusLed);
-    WebServer & webServer = WebServer::GetInstance();
-    webServer.Startup(&app.GetAppIf());
+    pApp = new (std::nothrow) WifiNatRouterApp::WifiNatRouterApp(WifiNatRouter::WifiNatRouterFactory::GetInstance().GetWifiNatRouter(), pStatusLed);
+    assert(pApp);
 
+    if (ENABLE_FACTORY_RESET_PB)
+    {
+        constexpr FactoryReset::FactoryResetPb::Config FrConfig{static_cast<gpio_num_t>(FACTORY_RESET_GPIO_PIN), FACTORY_RESET_PB_PRESS_TIME_TO_BLINK_LED, FACTORY_RESET_PB_PRESS_TIME_TO_REQUEST};
+        pFactoryResetButton = new (std::nothrow) FactoryReset::FactoryResetPb(FrConfig, pStatusLed, &(pApp->GetAppIf()));
+        assert(pFactoryResetButton);
+    }
+
+    WebServer & webServer = WebServer::GetInstance();
+    webServer.Startup(&(pApp->GetAppIf()));
+}
+
+void product_main(void)
+{
     for (;;)
     {
-        vTaskDelay(pdMS_TO_TICKS(5000));
+        if (pFactoryResetButton)
+        {
+            pFactoryResetButton->MainLoop();
+        }
+
+        if (pStatusLed)
+        {
+            pStatusLed->MainLoop();
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(20));
     }
 }

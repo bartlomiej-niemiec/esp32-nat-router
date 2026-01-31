@@ -1,7 +1,6 @@
 #pragma once
 
 #include "wifi_nat_router_if/wifi_nat_router_config.hpp"
-#include "wifi_nat_router_if/wifi_nat_router_if.hpp"
 #include "rgbled_if/rgbled_if.hpp"
 #include "rgbled_if/rgbled_utils.hpp"
 
@@ -9,39 +8,29 @@
 #include "freertos/task.h"
 #include "freertos/queue.h"
 
+#include "status_led/status_led_if.hpp"
+
 #include <array>
 #include <memory>
 #include <variant>
+#include <optional>
 
 namespace StatusLed
 {
 
-enum class StatusType {
-    NETWORK_STATUS_UPDATE,
-    INTERNET_ACCESS,
-    FACTORY_RESET
-};
 
-enum class FactoryResetState {
-    START,
-    CANCEL,
-    DONE
-};
-
-struct Status {
-    StatusType type;
-    WifiNatRouter::WifiNatRouterState routerState;
-    bool internetAvailable;
-    FactoryResetState factoryResetState;
-};
-
-class StatusLed
+class StatusLed:
+    public StatusLedIf
 {
     public:
 
         StatusLed(const uint32_t gpio_pin_num);
 
+        ~StatusLed();
+
         bool Update (const Status & status);
+
+        void MainLoop();
 
     private:
 
@@ -56,11 +45,6 @@ class StatusLed
         bool m_CachedInternetAccess;
         StatusLedState m_State;
 
-        static constexpr std::string_view TASK_NAME = "RGB_STATUS_LED";
-        static constexpr uint32_t TASK_STACK_SIZE = 4096;
-        static constexpr int TASK_PRIORITY = 2;
-
-        TaskHandle_t m_MainTask;
         QueueHandle_t m_MessageQueue;
         StaticQueue_t m_QueueStorage;
 
@@ -103,6 +87,18 @@ WifiNatRouterState state)
             return static_cast<size_t>(state);
         }
 
+        const std::array<std::optional<configVars>, static_cast<size_t>(FactoryResetState::MAX_STATE)> m_FactoryResetLedMatrix = {{
+            { BlinkConfig(RgbLed::RgbColorCreator::Create(RgbLed::Color::Purple), BLINK_1HZ)    },  // START
+            { std::nullopt                                                                      },  // CANCEL
+            { SolidConfig(RgbLed::RgbColorCreator::Create(RgbLed::Color::Purple))               },  // DONE_WAIT_FOR_RELEASE
+            { std::nullopt                                                                      },  // DONE
+        }};
+
+        constexpr size_t ToIndex(FactoryResetState state)
+        {
+            return static_cast<size_t>(state);
+        }
+
         template<typename A, typename B>
         struct Visitor2 : A, B {
             Visitor2(A a, B b) : A(a), B(b) {}
@@ -110,8 +106,7 @@ WifiNatRouterState state)
             using B::operator();
         };
 
-        static void MainLoop(void *pArg);
-
+        
         void UpdateLedRouterState(WifiNatRouter::WifiNatRouterState state);
 
         void UpdateLedInternetAccess(bool internetAvailable);
