@@ -175,6 +175,7 @@ WifiManager::WifiManager():
     m_StartUpInProgress(false),
     m_ScanningActive(false),
     m_ShutdownInProgress(false),
+    m_NatRouterStatistics(),
     m_ReconnectCounterVal(0),
     m_StaConnectionTimer(nullptr)
 {
@@ -787,6 +788,32 @@ bool WifiManager::IsScanningPossible()
         (state == WifiNatRouterState::STA_CANNOT_CONNECT ||
         state == WifiNatRouterState::CONNECTING ||
         state == WifiNatRouterState::RUNNING);
+}
+
+const NatRouterStatistics & WifiManager::GetNetworkStatistics() {
+    
+    const stats_ & stats = lwip_stats;
+    SaveNetworkStats(stats.ip, m_NatRouterStatistics.ip);
+    SaveNetworkStats(stats.udp, m_NatRouterStatistics.udp);
+    SaveNetworkStats(stats.tcp, m_NatRouterStatistics.tcp);
+    SaveNetworkStats(stats.icmp, m_NatRouterStatistics.icmp);
+
+    m_NatRouterStatistics.napt_stats.nr_active_tcp = lwip_stats.ip_napt.nr_active_tcp;
+    m_NatRouterStatistics.napt_stats.nr_active_udp = lwip_stats.ip_napt.nr_active_udp;
+    m_NatRouterStatistics.napt_stats.nr_active_icmp = lwip_stats.ip_napt.nr_active_icmp;
+    m_NatRouterStatistics.napt_stats.nr_forced_evictions = lwip_stats.ip_napt.nr_forced_evictions;
+
+    return m_NatRouterStatistics;
+}
+
+void WifiManager::SaveNetworkStats(const stats_proto & rfrom, ProtoStats & to)
+{
+    to.xmit = static_cast<uint64_t>(rfrom.xmit);             /* Transmitted packets. */
+    to.recv = static_cast<uint64_t>(rfrom.recv);             /* Received packets. */
+    to.fw = static_cast<uint64_t>(rfrom.fw);               /* Forwarded packets. */
+    to.drop = static_cast<uint64_t>(rfrom.drop);             /* Dropped packets. */
+    to.chkerr = static_cast<uint64_t>(rfrom.chkerr);           /* Checksum error. */
+    to.lenerr = static_cast<uint64_t>(rfrom.lenerr);           /* Invalid length error. */
 }
 
 }
