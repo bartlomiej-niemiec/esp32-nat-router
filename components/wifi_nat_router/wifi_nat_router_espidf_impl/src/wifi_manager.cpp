@@ -808,12 +808,12 @@ const NatRouterStatistics & WifiManager::GetNetworkStatistics() {
 
 void WifiManager::SaveNetworkStats(const stats_proto & rfrom, ProtoStats & to)
 {
-    to.xmit = static_cast<uint64_t>(rfrom.xmit);             /* Transmitted packets. */
-    to.recv = static_cast<uint64_t>(rfrom.recv);             /* Received packets. */
-    to.fw = static_cast<uint64_t>(rfrom.fw);               /* Forwarded packets. */
-    to.drop = static_cast<uint64_t>(rfrom.drop);             /* Dropped packets. */
-    to.chkerr = static_cast<uint64_t>(rfrom.chkerr);           /* Checksum error. */
-    to.lenerr = static_cast<uint64_t>(rfrom.lenerr);           /* Invalid length error. */
+    to.xmit = static_cast<uint64_t>(rfrom.xmit);             
+    to.recv = static_cast<uint64_t>(rfrom.recv);             
+    to.fw = static_cast<uint64_t>(rfrom.fw);               
+    to.drop = static_cast<uint64_t>(rfrom.drop);             
+    to.chkerr = static_cast<uint64_t>(rfrom.chkerr);           
+    to.lenerr = static_cast<uint64_t>(rfrom.lenerr);           
 }
 
 }
